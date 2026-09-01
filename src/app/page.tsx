@@ -32,6 +32,11 @@ interface WardRisk {
   compositeRisk: number
   compositeRiskLevel: string
   recommendations: string[]
+  currentTemp: number
+  currentHumidity: number
+  vulnerabilityGreenPct: number
+  vulnerabilityBuildingDensity: number
+  vulnerabilityWorkerDensity: number
   updated_at: string
 }
 
@@ -70,14 +75,15 @@ export default function HomePage() {
   const [lastUpdated, setLastUpdated] = useState<string>('')
 
   useEffect(() => {
-    // Load ward geometry, risk, alerts, and thermal forecast
+    // Load ward geometry (via API), risk, alerts, and thermal forecast
     Promise.all([
-      fetch('/data/pune-admin-wards.geojson').then((r) => r.json()),
+      fetch('/api/geography').then((r) => r.json()),
       fetch('/api/risk').then((r) => r.json()),
       fetch('/api/alerts').then((r) => r.json()),
       fetch('/api/thermal').then((r) => r.json()),
-    ]).then(([wardsData, riskData, alertsData, thermal]) => {
-      setAdminWardsGeoJSON(wardsData as unknown as GeoJSON.FeatureCollection)
+    ]).then(([geoData, riskData, alertsData, thermal]) => {
+      const geoResponse = geoData as { type: string; data: GeoJSON.FeatureCollection }
+      setAdminWardsGeoJSON(geoResponse.data)
       setWardRisks(riskData.wards as WardRisk[])
       setAlerts(alertsData.alerts as Alert[])
       setThermalData(thermal as ThermalData)
@@ -221,6 +227,12 @@ export default function HomePage() {
                   const ward = wardRisks.find((r) => r.wardName === selectedWard)
                   if (!ward) return <div className="text-xs text-zinc-400">No data available</div>
                   const color = getRiskColor(ward.compositeRiskLevel as 'low'|'moderate'|'high'|'extreme'|'danger')
+                  // Vulnerability breakdown (from risk.ts formula)
+                  const greenScore = Math.round((1 - (ward.vulnerabilityGreenPct ?? 10) / 25) * 35)
+                  const densityScore = Math.round((ward.vulnerabilityBuildingDensity ?? 0.7) * 30)
+                  const workerScore = Math.round((ward.vulnerabilityWorkerDensity ?? 0.5) * 20)
+                  const baseScore = 15
+                  const vulnTotal = greenScore + densityScore + workerScore + baseScore
                   return (
                     <div className="space-y-2">
                       <div className="flex items-center gap-2">
@@ -234,7 +246,49 @@ export default function HomePage() {
                         <div>WBGT: <span className="font-medium">{ward.wbgt}°C</span></div>
                         <div>Thermal: <span className="font-medium capitalize">{ward.thermalRisk}</span></div>
                         <div>Vulnerability: <span className="font-medium">{ward.vulnerabilityScore}/100</span></div>
+                        <div>Humidity: <span className="font-medium">{ward.currentHumidity}%</span></div>
+                        <div>Temp: <span className="font-medium">{ward.currentTemp}°C</span></div>
                       </div>
+
+                      {/* Vulnerability breakdown */}
+                      <div className="bg-zinc-50 rounded p-2 space-y-1">
+                        <div className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wide">
+                          Vulnerability Breakdown
+                        </div>
+                        <div className="flex justify-between text-[10px] text-zinc-600">
+                          <span>Green space scarcity (35%)</span>
+                          <span>{greenScore} pts</span>
+                        </div>
+                        <div className="w-full bg-zinc-200 rounded-full h-1">
+                          <div className="bg-blue-500 h-1 rounded-full" style={{ width: `${(greenScore/35)*100}%` }} />
+                        </div>
+                        <div className="flex justify-between text-[10px] text-zinc-600">
+                          <span>Building density (30%)</span>
+                          <span>{densityScore} pts</span>
+                        </div>
+                        <div className="w-full bg-zinc-200 rounded-full h-1">
+                          <div className="bg-orange-500 h-1 rounded-full" style={{ width: `${(densityScore/30)*100}%` }} />
+                        </div>
+                        <div className="flex justify-between text-[10px] text-zinc-600">
+                          <span>Worker exposure (20%)</span>
+                          <span>{workerScore} pts</span>
+                        </div>
+                        <div className="w-full bg-zinc-200 rounded-full h-1">
+                          <div className="bg-red-500 h-1 rounded-full" style={{ width: `${(workerScore/20)*100}%` }} />
+                        </div>
+                        <div className="flex justify-between text-[10px] text-zinc-600">
+                          <span>Base urban risk (15%)</span>
+                          <span>{baseScore} pts</span>
+                        </div>
+                        <div className="pt-1 border-t border-zinc-200 flex justify-between text-[10px] font-medium text-zinc-700">
+                          <span>Total Vulnerability</span>
+                          <span>{Math.min(100, vulnTotal)}/100</span>
+                        </div>
+                        <div className="text-[9px] text-zinc-400">
+                          Baseline estimates — not fabricated health data. See docs/research/PHASE10.
+                        </div>
+                      </div>
+
                       <div className="text-xs text-zinc-500 space-y-0.5">
                         {ward.recommendations.slice(0, 3).map((r, i) => (
                           <div key={i}>• {r}</div>
@@ -323,6 +377,18 @@ export default function HomePage() {
                 <div className="flex justify-between items-center py-1 border-b border-zinc-50">
                   <span className="text-zinc-600">Timeline Slider UI</span>
                   <span className="text-green-600 font-medium">✅ Live</span>
+                </div>
+                <div className="flex justify-between items-center py-1 border-b border-zinc-50">
+                  <span className="text-zinc-600">Geography API</span>
+                  <span className="text-green-600 font-medium">✅ Live</span>
+                </div>
+                <div className="flex justify-between items-center py-1 border-b border-zinc-50">
+                  <span className="text-zinc-600">Vulnerability Breakdown</span>
+                  <span className="text-green-600 font-medium">✅ Live</span>
+                </div>
+                <div className="flex justify-between items-center py-1 border-b border-zinc-50">
+                  <span className="text-zinc-600">Phase 10–12 Docs</span>
+                  <span className="text-green-600 font-medium">✅ Written</span>
                 </div>
               </div>
             </div>

@@ -38,6 +38,10 @@ export interface WardRisk {
   compositeRisk: number        // 0-100
   compositeRiskLevel: RiskLevel
   recommendations: string[]
+  // Vulnerability breakdown components (transparent baseline)
+  vulnerabilityGreenPct: number
+  vulnerabilityBuildingDensity: number
+  vulnerabilityWorkerDensity: number
   updated_at: string
 }
 
@@ -102,6 +106,8 @@ export function calculateWardRisk(
   const workerScore = Math.round((vulnerability.outdoorWorkerDensity ?? 0.5) * 20)
   const vulnerabilityScore = Math.min(100, greenScore + densityScore + workerScore + 15)
 
+  // Breakdown components are stored on the result object for UI display
+
   // Thermal risk score (0-100)
   const thermalScore = Math.min(100, Math.max(0, (thermalData.heatIndex - 20) / 3.4))
 
@@ -138,6 +144,10 @@ export function calculateWardRisk(
     compositeRisk,
     compositeRiskLevel,
     recommendations,
+    // Vulnerability breakdown components (for UI display)
+    vulnerabilityGreenPct: vulnerability.greenSpacePct ?? 10,
+    vulnerabilityBuildingDensity: vulnerability.buildingDensity ?? 0.7,
+    vulnerabilityWorkerDensity: vulnerability.outdoorWorkerDensity ?? 0.5,
     updated_at: new Date().toISOString(),
   }
 }

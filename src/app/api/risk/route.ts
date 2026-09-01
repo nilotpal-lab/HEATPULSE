@@ -36,20 +36,25 @@ export async function GET(request: NextRequest) {
   try {
     const forecast = await fetchWeatherForecast(lat, lon, 5)
 
-    if (wardName && WARD_POINTS[wardName]) {
-      // Single ward risk
-      const point = WARD_POINTS[wardName]
-      const wardForecast = await fetchWeatherForecast(point.lat, point.lon, 5)
-      const thermalNow = forecast.hourly.find((h) => h.time.startsWith(new Date().toISOString().slice(0, 13)))
+    // Find the most relevant hourly reading (closest to current time, fallback to first)
+    const nowStr = new Date().toISOString().slice(0, 13) // "2026-09-01T19"
+    const currentReading = forecast.hourly.find((h) => h.time.startsWith(nowStr)) ?? forecast.hourly[0]
 
-      if (!thermalNow) {
-        return NextResponse.json({ error: 'No current weather data available' }, { status: 400 })
+    if (wardName && WARD_POINTS[wardName]) {
+      // Single ward risk — fetch ward-specific weather if possible
+      const point = WARD_POINTS[wardName]
+      let wardForecast
+      try {
+        wardForecast = await fetchWeatherForecast(point.lat, point.lon, 5)
+      } catch {
+        wardForecast = forecast // fallback to city-wide
       }
+      const reading = wardForecast.hourly.find((h) => h.time.startsWith(nowStr)) ?? wardForecast.hourly[0]
 
       const thermal = calculateThermalStress(
-        thermalNow.temperature_2m,
-        thermalNow.relative_humidity_2m,
-        thermalNow.apparent_temperature
+        reading.temperature_2m,
+        reading.relative_humidity_2m,
+        reading.apparent_temperature
       )
 
       const risk = calculateWardRisk(wardName, point.lon, point.lat, {
@@ -57,6 +62,7 @@ export async function GET(request: NextRequest) {
         wbgt: thermal.wbgt_estimated,
         riskLevel: thermal.risk_level,
       })
+      risk.currentHumidity = reading.relative_humidity_2m
 
       return NextResponse.json(risk)
     }
@@ -64,13 +70,10 @@ export async function GET(request: NextRequest) {
     // All wards risk summary
     const allRisk = Object.entries(WARD_POINTS).map(([name, point]) => {
       // Use city-wide forecast as baseline (ward-level would need per-ward weather)
-      const thermalNow = forecast.hourly.find((h) => h.time.startsWith(new Date().toISOString().slice(0, 13)))
-      if (!thermalNow) return null
-
       const thermal = calculateThermalStress(
-        thermalNow.temperature_2m,
-        thermalNow.relative_humidity_2m,
-        thermalNow.apparent_temperature
+        currentReading.temperature_2m,
+        currentReading.relative_humidity_2m,
+        currentReading.apparent_temperature
       )
 
       return calculateWardRisk(name, point.lon, point.lat, {
@@ -78,7 +81,7 @@ export async function GET(request: NextRequest) {
         wbgt: thermal.wbgt_estimated,
         riskLevel: thermal.risk_level,
       })
-    }).filter(Boolean)
+    })
 
     return NextResponse.json({
       generated_at: forecast.generated_at,
