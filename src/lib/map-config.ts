@@ -52,7 +52,7 @@ export function createBhuvanLayer(layerName: string) {
     extent,
     resolutions,
     origin: [extent[0], extent[3]],
-    tileSizes: [256],
+    // tileSize: 256,  // Removed — causes mismatch with 23 resolutions
   })
 
   const source = new UrlTile({
