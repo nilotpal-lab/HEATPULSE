@@ -75,23 +75,52 @@ export function createBhuvanLayer(layerName: string) {
   return new TileLayer({ source, visible: false, zIndex: 0 })
 }
 
-export function createAdminWardsLayer(geojsonData: GeoJSON.FeatureCollection): VectorLayer {
+interface WardRisk {
+  wardName: string
+  compositeRisk: number
+  compositeRiskLevel: string
+}
+
+type RiskLevel = 'low' | 'moderate' | 'high' | 'extreme' | 'danger'
+
+export function createAdminWardsLayer(
+  geojsonData: GeoJSON.FeatureCollection,
+  wardRisks: WardRisk[] = []
+): VectorLayer {
+  // Build a risk lookup map
+  const riskMap: Record<string, WardRisk> = {}
+  wardRisks.forEach((r) => { riskMap[r.wardName] = r })
+
   const source = new VectorSource({
     features: new GeoJSON().readFeatures(geojsonData, { featureProjection: 'EPSG:3857' }),
   })
+
+  // Risk-based colors
+  const riskColors: Record<string, { fill: string; stroke: string }> = {
+    low: { fill: 'rgba(34, 197, 94, 0.2)', stroke: 'rgba(34, 197, 94, 0.8)' },
+    moderate: { fill: 'rgba(59, 130, 246, 0.2)', stroke: 'rgba(59, 130, 246, 0.8)' },
+    high: { fill: 'rgba(245, 158, 11, 0.2)', stroke: 'rgba(245, 158, 11, 0.8)' },
+    extreme: { fill: 'rgba(234, 88, 12, 0.2)', stroke: 'rgba(234, 88, 12, 0.8)' },
+    danger: { fill: 'rgba(220, 38, 38, 0.2)', stroke: 'rgba(220, 38, 38, 0.8)' },
+  }
+
   return new VectorLayer({
     source,
     zIndex: 10,
     style: (feature) => {
-      const name = (feature.get('Name') || feature.get('name') || 'Unknown') as string
+      const name = (feature.get('name') || feature.get('Name') || 'Unknown') as string
+      const risk = riskMap[name]
+      const riskLevel = risk?.compositeRiskLevel ?? 'low'
+      const colors = riskColors[riskLevel] ?? riskColors.low
+
       return new Style({
-        fill: new Fill({ color: 'rgba(255, 100, 50, 0.12)' }),
-        stroke: new Stroke({ color: 'rgba(255, 80, 30, 0.85)', width: 1.5 }),
+        fill: new Fill({ color: colors.fill }),
+        stroke: new Stroke({ color: colors.stroke, width: 1.5 }),
         text: new Text({
           text: name.replace('Admin Ward ', ''),
           textAlign: 'center',
           overflow: true,
-          scale: 0.9,
+          scale: 0.85,
           fill: new Fill({ color: '#1a1a1a' }),
           stroke: new Stroke({ color: '#ffffff', width: 3 }),
         }),

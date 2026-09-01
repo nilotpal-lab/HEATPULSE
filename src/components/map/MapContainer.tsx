@@ -4,21 +4,39 @@
  * HeatPulse — OpenLayers Map Container
  *
  * SSR-safe: map initialization happens in useEffect.
+ * Supports risk-based ward coloring and selection.
  */
 import { useEffect, useRef, useState } from 'react'
 import { initMap, createAdminWardsLayer, createBhuvanLayer } from '@/lib/map-config'
 import type { Map as OlMap } from 'ol'
+import { getRiskColor } from '@/lib/risk'
+
+interface WardRisk {
+  wardName: string
+  lon: number
+  lat: number
+  compositeRisk: number
+  compositeRiskLevel: string
+}
 
 interface Props {
   adminWardsGeoJSON?: GeoJSON.FeatureCollection
   bhuvanLayer?: string
+  wardRisks?: WardRisk[]
+  selectedWard?: string | null
+  onWardSelect?: (ward: string | null) => void
 }
 
-export default function MapContainer({ adminWardsGeoJSON, bhuvanLayer }: Props) {
+export default function MapContainer({
+  adminWardsGeoJSON,
+  bhuvanLayer,
+  wardRisks = [],
+  selectedWard,
+  onWardSelect,
+}: Props) {
   const mapRef = useRef<OlMap | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const [mapReady, setMapReady] = useState(false)
-  const [selectedWard, setSelectedWard] = useState<string | null>(null)
   const [bhuvanVisible, setBhuvanVisible] = useState(false)
 
   useEffect(() => {
@@ -38,10 +56,10 @@ export default function MapContainer({ adminWardsGeoJSON, bhuvanLayer }: Props) 
     map.on('singleclick', (event) => {
       const feature = map.forEachFeatureAtPixel(event.pixel, (f) => f)
       if (feature) {
-        const name = feature.get('Name') || feature.get('name') || 'Unknown'
-        setSelectedWard(name as string)
+        const name = feature.get('name') || feature.get('Name') || 'Unknown'
+        if (onWardSelect) onWardSelect(name as string)
       } else {
-        setSelectedWard(null)
+        if (onWardSelect) onWardSelect(null)
       }
     })
 
@@ -55,14 +73,14 @@ export default function MapContainer({ adminWardsGeoJSON, bhuvanLayer }: Props) 
       map.dispose()
       mapRef.current = null
     }
-  }, [bhuvanLayer])
+  }, [bhuvanLayer, onWardSelect])
 
   // Re-add admin wards when data arrives
   useEffect(() => {
     if (!mapRef.current || !adminWardsGeoJSON) return
-    const wardsLayer = createAdminWardsLayer(adminWardsGeoJSON)
+    const wardsLayer = createAdminWardsLayer(adminWardsGeoJSON, wardRisks)
     mapRef.current.addLayer(wardsLayer)
-  }, [adminWardsGeoJSON])
+  }, [adminWardsGeoJSON, wardRisks])
 
   // Toggle Bhuvan visibility
   useEffect(() => {
@@ -92,14 +110,6 @@ export default function MapContainer({ adminWardsGeoJSON, bhuvanLayer }: Props) 
         </div>
       )}
 
-      {selectedWard && (
-        <div className="absolute top-4 left-4 z-10 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg p-3 max-w-xs">
-          <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-1">Selected Ward</div>
-          <div className="text-sm font-medium text-zinc-900">{selectedWard}</div>
-          <div className="text-xs text-zinc-400 mt-1">Click elsewhere to deselect</div>
-        </div>
-      )}
-
       {bhuvanLayer && (
         <div className="absolute bottom-4 right-4 z-10 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg p-2 flex items-center gap-2">
           <label className="flex items-center gap-2 text-xs text-zinc-700 cursor-pointer select-none">
@@ -116,7 +126,7 @@ export default function MapContainer({ adminWardsGeoJSON, bhuvanLayer }: Props) 
       )}
 
       <div className="absolute bottom-4 left-4 z-10 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg p-3 text-xs">
-        <div className="font-semibold text-zinc-700 mb-2">HeatPulse Prototype</div>
+        <div className="font-semibold text-zinc-700 mb-2">HeatPulse Dashboard</div>
         <div className="space-y-1 text-zinc-500">
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-sm bg-orange-400/30 border border-orange-500" />
@@ -130,6 +140,21 @@ export default function MapContainer({ adminWardsGeoJSON, bhuvanLayer }: Props) 
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-sm bg-emerald-400/30 border border-emerald-500" />
               <span>Bhuvan LULC (toggle)</span>
+            </div>
+          )}
+          {wardRisks.length > 0 && (
+            <div className="flex items-center gap-2 mt-1 pt-1 border-t border-zinc-100">
+              <div className="flex gap-1">
+                {['low', 'moderate', 'high', 'extreme', 'danger'].map((level) => (
+                  <div
+                    key={level}
+                    className="w-2 h-2 rounded-full"
+                    style={{ backgroundColor: getRiskColor(level as 'low'|'moderate'|'high'|'extreme'|'danger') }}
+                    title={level}
+                  />
+                ))}
+              </div>
+              <span className="text-zinc-400">Risk levels</span>
             </div>
           )}
         </div>

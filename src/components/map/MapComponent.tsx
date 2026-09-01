@@ -6,7 +6,7 @@
  * Renders the OpenLayers map with:
  * - OSM basemap (fallback)
  * - Bhuvan WMS layer (contextual, toggleable)
- * - Pune 15 administrative wards overlay
+ * - Pune 15 administrative wards overlay with risk-based coloring
  *
  * SSR-safe: map initialization happens in useEffect.
  */
@@ -14,6 +14,14 @@ import { useEffect, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { initMap, createAdminWardsLayer, createBhuvanLayer } from '@/lib/map-config'
 import type { Map as OlMap } from 'ol'
+
+interface WardRisk {
+  wardName: string
+  lon: number
+  lat: number
+  compositeRisk: number
+  compositeRiskLevel: string
+}
 
 // Dynamic import to avoid SSR issues with OpenLayers
 const MapContainer = dynamic(() => import('./MapContainer'), {
@@ -28,8 +36,25 @@ const MapContainer = dynamic(() => import('./MapContainer'), {
 interface MapComponentProps {
   adminWardsGeoJSON?: GeoJSON.FeatureCollection
   bhuvanLayer?: string // WMS layer name (e.g. 'lulc:BR_LULC50K_1112')
+  wardRisks?: WardRisk[]
+  selectedWard?: string | null
+  onWardSelect?: (ward: string | null) => void
 }
 
-export default function MapComponent({ adminWardsGeoJSON, bhuvanLayer }: MapComponentProps) {
-  return <MapContainer adminWardsGeoJSON={adminWardsGeoJSON} bhuvanLayer={bhuvanLayer} />
+export default function MapComponent({
+  adminWardsGeoJSON,
+  bhuvanLayer,
+  wardRisks,
+  selectedWard,
+  onWardSelect,
+}: MapComponentProps) {
+  return (
+    <MapContainer
+      adminWardsGeoJSON={adminWardsGeoJSON}
+      bhuvanLayer={bhuvanLayer}
+      wardRisks={wardRisks}
+      selectedWard={selectedWard}
+      onWardSelect={onWardSelect}
+    />
+  )
 }
