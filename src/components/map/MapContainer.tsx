@@ -23,7 +23,6 @@ interface Props {
   adminWardsGeoJSON?: GeoJSON.FeatureCollection
   bhuvanLayer?: string
   wardRisks?: WardRisk[]
-  selectedWard?: string | null
   onWardSelect?: (ward: string | null) => void
 }
 
@@ -31,7 +30,6 @@ export default function MapContainer({
   adminWardsGeoJSON,
   bhuvanLayer,
   wardRisks = [],
-  selectedWard,
   onWardSelect,
 }: Props) {
   const mapRef = useRef<OlMap | null>(null)

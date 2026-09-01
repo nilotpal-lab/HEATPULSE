@@ -10,10 +10,7 @@
  *
  * SSR-safe: map initialization happens in useEffect.
  */
-import { useEffect, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
-import { initMap, createAdminWardsLayer, createBhuvanLayer } from '@/lib/map-config'
-import type { Map as OlMap } from 'ol'
 
 interface WardRisk {
   wardName: string

@@ -142,7 +142,7 @@ export function calculateThermalStress(
   const hi = calculateHeatIndex(temperature, humidity)
   const wbgt = calculateWBGT(temperature, humidity)
   const utc = approximateUTCI(temperature, humidity, apparentTemperature)
-  const { level, label, color } = classifyRisk(hi)
+  const { level, label } = classifyRisk(hi)
   const recommendations = getRecommendations(level, temperature, humidity)
 
   return {

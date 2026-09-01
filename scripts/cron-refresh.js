@@ -11,8 +11,11 @@
  * On Vercel: use the /api/thermal endpoint with cron triggers instead.
  * This script is for self-hosted or manual execution.
  */
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const fs = require('fs')
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const path = require('path')
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const https = require('https')
 
 const OUTPUT_DIR = path.join(__dirname, '..', 'data', 'runtime')

@@ -55,7 +55,7 @@ function isDayChange(times: string[], i: number): boolean {
   return prev.getDate() !== curr.getDate()
 }
 
-export default function TimelineSlider({ data, selectedPoint, onPointSelect }: TimelineProps) {
+export default function TimelineSlider({ data, selectedPoint }: TimelineProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [containerWidth, setContainerWidth] = useState(0)
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)

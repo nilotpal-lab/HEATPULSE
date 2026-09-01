@@ -81,7 +81,7 @@ interface WardRisk {
   compositeRiskLevel: string
 }
 
-type RiskLevel = 'low' | 'moderate' | 'high' | 'extreme' | 'danger'
+// RiskLevel type exported from @/lib/risk
 
 export function createAdminWardsLayer(
   geojsonData: GeoJSON.FeatureCollection,

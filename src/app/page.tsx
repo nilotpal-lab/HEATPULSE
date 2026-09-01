@@ -11,16 +11,6 @@ import MapComponent from '@/components/map/MapComponent'
 import TimelineSlider, { type ThermalHourlyPoint } from '@/components/timeline/TimelineSlider'
 import { getRiskColor } from '@/lib/risk'
 
-interface AdminWardsData {
-  type: string
-  features: Array<{
-    type: string
-    properties: { name: string }
-    geometry: GeoJSON.Geometry
-  }>
-  crs?: { type: string; properties: { name: string } }
-}
-
 interface WardRisk {
   wardName: string
   lon: number

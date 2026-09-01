@@ -13,8 +13,11 @@
  * If Docker is unavailable, run the SQL manually at:
  *   https://app.supabase.com/project/braiktcmrtvnlwsioxtm/sql/new
  */
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const { createClient } = require('@supabase/supabase-js')
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const fs = require('fs')
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const path = require('path')
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -26,6 +29,8 @@ if (!SUPABASE_URL || !SUPABASE_SECRET) {
   process.exit(1)
 }
 
+// Supabase client created for future use (migration runs via REST API)
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const supabase = createClient(SUPABASE_URL, SUPABASE_SECRET)
 
 async function runMigration() {
