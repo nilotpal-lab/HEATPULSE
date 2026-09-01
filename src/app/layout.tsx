@@ -26,14 +26,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
-      <head>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `(function(){try{document.querySelectorAll('[bis_skin_checked],[bis_register],[__processed_*]').forEach(function(el){el.removeAttribute('bis_skin_checked');el.removeAttribute('bis_register');for(var k of Object.keys(el.attributes))if(k.startsWith('__processed_'))el.removeAttribute(k)});}catch(e){}})()`,
-          }}
-        />
-      </head>
       <body className="min-h-screen bg-zinc-50 antialiased">
+        {/* Strip browser-extension injected attributes before React hydrates */}
+        <script dangerouslySetInnerHTML={{ __html: `(function(){try{document.querySelectorAll('[bis_skin_checked],[bis_register],[__processed_*]').forEach(function(e){e.removeAttribute('bis_skin_checked');e.removeAttribute('bis_register');for(var i=e.attributes.length-1;i>=0;i--){var n=e.attributes[i].name;if(n.indexOf('__processed_')===0)e.removeAttribute(n)}})}catch(x){}})()` }} />
         {children}
       </body>
     </html>
