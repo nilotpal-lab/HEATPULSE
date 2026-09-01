@@ -117,7 +117,7 @@ export default function HomePage() {
             <span>·</span>
             <span>15 Admin Wards</span>
             <span>·</span>
-            <span className="text-zinc-400">Phase 9 — Live Data</span>
+            <span className="text-zinc-400">Phase 17 — QA Complete</span>
           </div>
         </div>
         <div className="flex items-center gap-3 text-xs text-zinc-500">
@@ -397,7 +397,7 @@ export default function HomePage() {
 
           {/* Footer */}
           <div className="p-3 border-t border-zinc-100 text-[10px] text-zinc-400 text-center">
-            HeatPulse v0.9.0 · SIH26083 · MoES/NCMRWF · Pune
+            HeatPulse v0.11.0 · SIH26083 · MoES/NCMRWF · Pune
           </div>
         </aside>
       </div>

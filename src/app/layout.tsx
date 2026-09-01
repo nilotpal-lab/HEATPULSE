@@ -26,6 +26,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{document.querySelectorAll('[bis_skin_checked],[bis_register],[__processed_*]').forEach(function(el){el.removeAttribute('bis_skin_checked');el.removeAttribute('bis_register');for(var k of Object.keys(el.attributes))if(k.startsWith('__processed_'))el.removeAttribute(k)});}catch(e){}})()`,
+          }}
+        />
+      </head>
       <body className="min-h-screen bg-zinc-50 antialiased">
         {children}
       </body>
