@@ -8,6 +8,7 @@
 
 import { useEffect, useState } from 'react'
 import MapComponent from '@/components/map/MapComponent'
+import TimelineSlider, { type ThermalHourlyPoint } from '@/components/timeline/TimelineSlider'
 import { getRiskColor } from '@/lib/risk'
 
 interface AdminWardsData {
@@ -42,26 +43,44 @@ interface Alert {
   message: string
 }
 
+interface ThermalSummary {
+  maxHeatIndex: number
+  minHeatIndex: number
+  currentRiskLevel: string
+  peakHour: ThermalHourlyPoint
+}
+
+interface ThermalData {
+  location: { latitude: number; longitude: number }
+  generated_at: string
+  hourly: ThermalHourlyPoint[]
+  summary: ThermalSummary
+}
+
 export default function HomePage() {
   const [adminWardsGeoJSON, setAdminWardsGeoJSON] =
     useState<GeoJSON.FeatureCollection | null>(null)
   const [wardRisks, setWardRisks] = useState<WardRisk[]>([])
   const [alerts, setAlerts] = useState<Alert[]>([])
+  const [thermalData, setThermalData] = useState<ThermalData | null>(null)
   const [selectedWard, setSelectedWard] = useState<string | null>(null)
+  const [selectedPoint, setSelectedPoint] = useState<ThermalHourlyPoint | null>(null)
   const [loading, setLoading] = useState(true)
   const [dataLoaded, setDataLoaded] = useState(false)
   const [lastUpdated, setLastUpdated] = useState<string>('')
 
   useEffect(() => {
-    // Load ward geometry
+    // Load ward geometry, risk, alerts, and thermal forecast
     Promise.all([
       fetch('/data/pune-admin-wards.geojson').then((r) => r.json()),
       fetch('/api/risk').then((r) => r.json()),
       fetch('/api/alerts').then((r) => r.json()),
-    ]).then(([wardsData, riskData, alertsData]) => {
+      fetch('/api/thermal').then((r) => r.json()),
+    ]).then(([wardsData, riskData, alertsData, thermal]) => {
       setAdminWardsGeoJSON(wardsData as unknown as GeoJSON.FeatureCollection)
       setWardRisks(riskData.wards as WardRisk[])
       setAlerts(alertsData.alerts as Alert[])
+      setThermalData(thermal as ThermalData)
       setLastUpdated(riskData.generated_at)
       setLoading(false)
       setDataLoaded(true)
@@ -253,6 +272,20 @@ export default function HomePage() {
               </div>
             </div>
 
+            {/* Timeline slider */}
+            {dataLoaded && thermalData && (
+              <div>
+                <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-2">
+                  120h Thermal Forecast
+                </h3>
+                <TimelineSlider
+                  data={thermalData.hourly}
+                  selectedPoint={selectedPoint}
+                  onPointSelect={setSelectedPoint}
+                />
+              </div>
+            )}
+
             {/* Data status */}
             <div>
               <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-2">
@@ -287,9 +320,9 @@ export default function HomePage() {
                   <span className="text-zinc-600">Supabase (PostgreSQL)</span>
                   <span className="text-yellow-600 font-medium">⏳ Schema Ready</span>
                 </div>
-                <div className="flex justify-between items-center py-1">
+                <div className="flex justify-between items-center py-1 border-b border-zinc-50">
                   <span className="text-zinc-600">Timeline Slider UI</span>
-                  <span className="text-zinc-400">⏳ Pending</span>
+                  <span className="text-green-600 font-medium">✅ Live</span>
                 </div>
               </div>
             </div>
