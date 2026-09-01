@@ -146,7 +146,6 @@ export default function HomePage() {
               adminWardsGeoJSON={adminWardsGeoJSON}
               bhuvanLayer="lulc:BR_LULC50K_1112"
               wardRisks={wardRisks}
-              selectedWard={selectedWard}
               onWardSelect={setSelectedWard}
             />
           ) : (

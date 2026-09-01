@@ -34,7 +34,6 @@ interface MapComponentProps {
   adminWardsGeoJSON?: GeoJSON.FeatureCollection
   bhuvanLayer?: string // WMS layer name (e.g. 'lulc:BR_LULC50K_1112')
   wardRisks?: WardRisk[]
-  selectedWard?: string | null
   onWardSelect?: (ward: string | null) => void
 }
 
@@ -42,7 +41,6 @@ export default function MapComponent({
   adminWardsGeoJSON,
   bhuvanLayer,
   wardRisks,
-  selectedWard,
   onWardSelect,
 }: MapComponentProps) {
   return (
@@ -50,7 +48,6 @@ export default function MapComponent({
       adminWardsGeoJSON={adminWardsGeoJSON}
       bhuvanLayer={bhuvanLayer}
       wardRisks={wardRisks}
-      selectedWard={selectedWard}
       onWardSelect={onWardSelect}
     />
   )
