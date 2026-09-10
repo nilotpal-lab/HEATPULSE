@@ -44,8 +44,18 @@ npm run lint      # ESLint + TypeScript type check
 | `/api/thermal` | GET | Thermal stress calculations (HI/WBGT/UTCI) | Live |
 | `/api/risk` | GET | Ward risk assessment (15 wards, composite score) | Live |
 | `/api/alerts` | GET | Active heat alerts with timezone fix (IST) | Live |
+| `/api/advisory` | GET | Automated public health advisories per alert grade | Live |
+| `/api/municipal-actions` | GET+POST | Municipal action trigger briefings + activation | Live |
+| `/api/twin-ward` | GET | Twin ward comparison demo (same temp, different risk) | Live |
 | `/api/geography` | GET | Ward boundaries + metadata + points (3 query modes) | Live |
 | `/api/cron/thermal` | GET | Scheduled thermal refresh (Vercel cron) | Live |
+
+## Pages
+| Route | Description |
+|---|---|
+| `/` | City Overview (Primary Screen) |
+| `/demo` | **SIH Demo** — Twin ward comparison (same temp, different risk grades) |
+| `/forecast`, `/risk-areas`, `/insights`, `/how-it-works`, `/india` | Standard navigation |
 
 ## Data Sources
 | Data | Source | License | Location |
@@ -68,8 +78,19 @@ npm run lint      # ESLint + TypeScript type check
 - Map components wrapped in `dynamic({ ssr: false })`
 - All API routes in `src/app/api/`
 
-## Vulnerability Baseline (current, transparent estimates)
+## Vulnerability Baseline (Census-enhanced for Pune, transparent estimates elsewhere)
+- **Census Enhanced (Pune)**: `src/lib/census-data.ts` — Census 2011 ward-level demographics
+  (population, elderly %, outdoor worker %, slum %) integrated into `getWardVulnerability()` via
+  `computeCensusVulnerabilityScore()`. Marked `is_estimated_baseline: false`.
 - Green space %: PMC surveys + Bhuvan LULC (real source, baseline values)
 - Building density: Census 2011 + NFHS-5 (real source, baseline values)
 - Outdoor worker density: NFHS-5 + PMC infrastructure (real source, baseline values)
 - All baseline values labeled "not fabricated health data" in UI
+
+## Advisory & Municipal Action Systems
+- **Advisory Engine**: `src/lib/advisory-engine.ts` — 4 grades (green/yellow/orange/red), each with
+  public guidance, vulnerable population guidance, municipal action templates, healthcare readiness.
+- **Census Data**: `src/lib/census-data.ts` — 15 Pune ward profiles (Census 2011 + NFHS-5).
+- **Municipal Actions**: POST endpoint simulates activation (cooling centres, work hours, water,
+  healthcare, education, transport). Production would wire to SMS/webhook/IoT.
+- **Demo Page**: `/demo` — renders twin-ward comparison via `/api/twin-ward`.

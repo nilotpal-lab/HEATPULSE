@@ -1,115 +1,170 @@
 /**
- * HeatPulse — Alerts API Route
- * GET /api/alerts?ward=Admin%20Ward%2001%20Aundh
- *
- * Returns active heat alerts for a ward based on risk thresholds.
+ * HeatPulse — Localized Thermal Advisories API Route
+ * Standard: SIH26083 MoES / NCMRWF Master Build Specification
+ * 
+ * GET /api/alerts?city=pune
+ * GET /api/alerts?city=bengaluru&ward=blr-001
+ * 
+ * Evaluates per-ward biometeorological stress across all centroids.
+ * Strictly segregated from official IMD district reference warnings.
  */
-import { NextRequest, NextResponse } from 'next/server'
-import { fetchWeatherForecast } from '@/lib/weather'
-import { calculateThermalStress } from '@/lib/thermal'
-import { PUNE_CENTER } from '@/lib/map-config'
-import { WARD_POINTS, calculateWardRisk } from '@/lib/risk'
 
-export interface Alert {
-  ward: string
-  level: 'watch' | 'warning' | 'critical'
-  heatIndex: number
-  compositeRisk: number
-  timestamp: string
-  message: string
+import { NextRequest, NextResponse } from 'next/server';
+import { getCityForecast, WeatherUnavailableError } from '@/lib/weather-service';
+import { calculateThermalStress } from '@/lib/thermal-engine';
+import { assessWardRisk } from '@/lib/risk-engine';
+import { evaluateImdDistrictWarning } from '@/lib/imd-service';
+import { generateAdvisory } from '@/lib/advisory-engine';
+
+export interface HeatAlert {
+  ward: string;
+  ward_id?: string;
+  level: 'watch' | 'warning' | 'critical';
+  heatIndex: number;
+  wbgt: number;
+  compositeRisk: number;
+  timestamp: string;
+  message: string;
+  advisory_type: 'HeatPulse Localized Biometeorological Advisory';
+  public_advisory?: {
+    grade: string;
+    headline: string;
+    public_guidance: string[];
+    vulnerable_population_guidance: string[];
+    municipal_action_count: number;
+  };
 }
 
 export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url)
-  const wardName = String(searchParams.get('ward') ?? '')
-  const lat = parseFloat(searchParams.get('lat') ?? String(PUNE_CENTER[1]))
-  const lon = parseFloat(searchParams.get('lon') ?? String(PUNE_CENTER[0]))
+  const { searchParams } = new URL(request.url);
+  const cityParam = (searchParams.get('city') || 'pune').toLowerCase().trim();
+  const wardParam = searchParams.get('ward')?.trim();
 
   try {
-    const forecast = await fetchWeatherForecast(lat, lon, 5)
+    const { run, status } = await getCityForecast(cityParam);
+    const wardEntries = Object.values(run.wards);
 
-    // Open-Meteo returns hourly times in Asia/Kolkata (IST).
-    // Compute IST now for matching; fall back to UTC prefix.
-    const utcNow = new Date().toISOString().slice(0, 13)
-    const istNow = new Date(Date.now() + 5.5 * 60 * 60 * 1000).toISOString().slice(0, 13)
+    const alerts: HeatAlert[] = [];
+    let maxTemp = 0;
 
-    const currentReading =
-      forecast.hourly.find((h) => h.time.startsWith(istNow)) ??
-      forecast.hourly.find((h) => h.time.startsWith(utcNow)) ??
-      forecast.hourly[0]
-
-    if (!currentReading) {
-      return NextResponse.json({ error: 'No weather data available' }, { status: 502 })
-    }
-
-    const thermal = calculateThermalStress(
-      currentReading.temperature_2m,
-      currentReading.relative_humidity_2m,
-      currentReading.apparent_temperature
-    )
-
-    const wardsToCheck = wardName ? [wardName] : Object.keys(WARD_POINTS)
-    const alerts: Alert[] = []
-
-    for (const name of wardsToCheck) {
-      const point = WARD_POINTS[name]
-      if (!point) continue
-
-      const risk = calculateWardRisk(name, point.lon, point.lat, {
-        heatIndex: thermal.heat_index,
-        wbgt: thermal.wbgt_estimated,
-        riskLevel: thermal.risk_level,
-      })
-
-      // Map thermal risk_level to alert level
-      let level: 'watch' | 'warning' | 'critical' = 'watch'
-      let message = ''
-
-      if (thermal.risk_level === 'extreme' || thermal.risk_level === 'danger') {
-        level = 'critical'
-        message = `CRITICAL: Heat Index ${thermal.heat_index}°C in ${name}. All outdoor work should stop immediately.`
-      } else if (thermal.risk_level === 'high') {
-        level = 'warning'
-        message = `WARNING: Heat Index ${thermal.heat_index}°C in ${name}. Reduce outdoor exertion and stay hydrated.`
-      } else if (thermal.risk_level === 'moderate') {
-        level = 'watch'
-        message = `WATCH: Heat Index ${thermal.heat_index}°C in ${name}. Monitor conditions and limit prolonged outdoor exposure.`
+    for (const wardForecast of wardEntries) {
+      if (wardParam && wardForecast.ward_name !== wardParam && wardForecast.ward_id !== wardParam) {
+        continue;
       }
 
-      // Always include if risk >= moderate, or if composite risk >= 50
-      if (thermal.heat_index >= 27 || risk.compositeRisk >= 50) {
+      const cur = wardForecast.current;
+      if (cur.temperature_2m > maxTemp) {
+        maxTemp = cur.temperature_2m;
+      }
+
+      const thermal = calculateThermalStress(
+        cur.temperature_2m,
+        cur.relative_humidity_2m,
+        cur.apparent_temperature
+      );
+
+      const assessment = assessWardRisk({
+        ward_id: wardForecast.ward_id,
+        ward_name: wardForecast.ward_name,
+        city_id: wardForecast.city_id,
+        temperature: cur.temperature_2m,
+        humidity: cur.relative_humidity_2m,
+        apparentTemperature: cur.apparent_temperature,
+        forecast_metadata: wardForecast.metadata,
+      });
+
+      let alertLevel: 'watch' | 'warning' | 'critical' | null = null;
+      let message = '';
+
+      if (thermal.heat_index >= 41.0 || thermal.wbgt_estimated >= 32.0) {
+        alertLevel = 'critical';
+        message = `HeatPulse Localized Advisory: Critical Heat Index ${thermal.heat_index}°C in ${wardForecast.ward_name}. Strenuous outdoor labor should pause during peak hours.`;
+      } else if (thermal.heat_index >= 32.0 || thermal.wbgt_estimated >= 28.0) {
+        alertLevel = 'warning';
+        message = `HeatPulse Localized Advisory: Elevated Heat Index ${thermal.heat_index}°C in ${wardForecast.ward_name}. Reduce outdoor exertion and enforce regular hydration.`;
+      } else if (thermal.heat_index >= 27.0 || assessment.composite_risk_score >= 50) {
+        alertLevel = 'watch';
+        message = `HeatPulse Localized Advisory: Heat Index ${thermal.heat_index}°C in ${wardForecast.ward_name}. Monitor microclimate conditions and support vulnerable populations.`;
+      }
+
+      if (alertLevel) {
+        // Generate structured public health advisory for this ward
+        const publicAdvisory = generateAdvisory({
+          ward_name: wardForecast.ward_name,
+          ward_id: wardForecast.ward_id,
+          city_id: wardForecast.city_id,
+          heat_index: thermal.heat_index,
+          wbgt: thermal.wbgt_estimated,
+          composite_risk_score: assessment.composite_risk_score,
+          thermal_stress: thermal.thermal_stress,
+          vulnerability_level: assessment.vulnerability_level,
+          valid_from: wardForecast.metadata.valid_time,
+          valid_until: new Date(
+            new Date(wardForecast.metadata.valid_time).getTime() + 24 * 60 * 60 * 1000
+          ).toISOString(),
+        });
+
         alerts.push({
-          ward: name,
-          level,
+          ward: wardForecast.ward_name,
+          ward_id: wardForecast.ward_id,
+          level: alertLevel,
           heatIndex: thermal.heat_index,
-          compositeRisk: risk.compositeRisk,
-          timestamp: thermal.calculated_at,
+          wbgt: thermal.wbgt_estimated,
+          compositeRisk: assessment.composite_risk_score,
+          timestamp: wardForecast.metadata.valid_time,
           message,
-        })
+          advisory_type: 'HeatPulse Localized Biometeorological Advisory',
+          public_advisory: {
+            grade: publicAdvisory.grade,
+            headline: publicAdvisory.headline,
+            public_guidance: publicAdvisory.public_guidance,
+            vulnerable_population_guidance: publicAdvisory.vulnerable_population_guidance,
+            municipal_action_count: publicAdvisory.municipal_actions.length,
+          },
+        });
       }
     }
 
-    // Sort by severity
-    const severityOrder = { critical: 0, warning: 1, watch: 2 }
-    alerts.sort((a, b) => severityOrder[a.level] - severityOrder[b.level])
+    // Sort alerts by severity (critical first)
+    const severityOrder = { critical: 0, warning: 1, watch: 2 };
+    alerts.sort((a, b) => severityOrder[a.level] - severityOrder[b.level]);
+
+    // Provide official IMD district reference warning alongside (strictly segregated)
+    const imdDistrictReference = evaluateImdDistrictWarning(cityParam, maxTemp);
 
     return NextResponse.json({
-      generated_at: forecast.generated_at,
+      success: true,
+      city_id: cityParam,
+      generated_at: run.metadata.fetched_at,
+      status,
+      forecast_metadata: run.metadata,
+      official_imd_district_reference: imdDistrictReference,
       alerts,
       alertCount: alerts.length,
       summary: {
-        maxHeatIndex: thermal.heat_index,
-        maxCompositeRisk: Math.max(...alerts.map((a) => a.compositeRisk), 0),
+        maxHeatIndex: alerts.length > 0 ? Math.max(...alerts.map((a) => a.heatIndex)) : 0,
+        maxCompositeRisk: alerts.length > 0 ? Math.max(...alerts.map((a) => a.compositeRisk)) : 0,
         criticalCount: alerts.filter((a) => a.level === 'critical').length,
         warningCount: alerts.filter((a) => a.level === 'warning').length,
         watchCount: alerts.filter((a) => a.level === 'watch').length,
       },
-    })
+    });
   } catch (error) {
-    console.error('Alerts API error:', error)
+    if (error instanceof WeatherUnavailableError) {
+      return NextResponse.json(
+        {
+          error: error.message,
+          status: 'unavailable',
+          attribution: 'Ward-localized forecast derived from numerical weather prediction',
+        },
+        { status: error.statusCode }
+      );
+    }
+
+    console.error('Alerts API error:', error);
     return NextResponse.json(
-      { error: 'Failed to generate alerts' },
+      { error: 'Failed to generate thermal advisories' },
       { status: 500 }
-    )
+    );
   }
 }

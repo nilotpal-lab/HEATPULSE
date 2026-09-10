@@ -1,0 +1,61 @@
+{
+  "model_type": "synthetic_health_pipeline_demo",
+  "health_outcome_model": false,
+  "label_source": "synthetic_demo",
+  "training_rows": 9600,
+  "test_rows": 2400,
+  "time_split": "first 80% train, final 20% test",
+  "features": [
+    "temperature",
+    "humidity",
+    "heatIndex",
+    "wbgt",
+    "vulnerability",
+    "population"
+  ],
+  "means": {
+    "temperature": 36.44541666666667,
+    "humidity": 65.44635416666667,
+    "heatIndex": 38.49783249999996,
+    "wbgt": 40.75264736894508,
+    "vulnerability": 54.95,
+    "population": 54873.375
+  },
+  "scales": {
+    "temperature": 4.907258636590137,
+    "humidity": 17.606777140954414,
+    "heatIndex": 5.0978262166610815,
+    "wbgt": 8.36285888280295,
+    "vulnerability": 23.093992725382073,
+    "population": 26046.83359884732
+  },
+  "models": {
+    "mortality": {
+      "target": "syntheticMortalityEvent",
+      "intercept": 3.309251156201326,
+      "weights": [
+        0.17945338949110246,
+        0.1586227032100074,
+        0.2143867080316495,
+        0.13071412562631785,
+        0.38112192881361867,
+        0.07053442543645615
+      ],
+      "testAccuracy": 0.9808
+    },
+    "hospitalization": {
+      "target": "syntheticHospitalizationEvent",
+      "intercept": 3.5070214877961137,
+      "weights": [
+        0.005739909493022012,
+        0.008798459836770358,
+        0.007661959048265244,
+        0.00417118672482742,
+        0.012466098921711589,
+        0.007081985444685964
+      ],
+      "testAccuracy": 0.9996
+    }
+  },
+  "warning": "Synthetic clinical-like benchmark only. Not observed mortality or hospitalization data. Do not use for clinical, public-health, or production claims."
+}

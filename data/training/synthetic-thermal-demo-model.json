@@ -1,0 +1,39 @@
+{
+  "model_type": "logistic_regression_demo",
+  "target": "synthetic_thermal_stress_event",
+  "label_source": "synthetic_demo",
+  "health_outcome_model": false,
+  "training_rows": 192,
+  "test_rows": 48,
+  "test_accuracy": 1,
+  "features": [
+    "temperature",
+    "humidity",
+    "heatIndex",
+    "wbgt",
+    "vulnerability"
+  ],
+  "means": {
+    "temperature": 35.3375,
+    "humidity": 63.35,
+    "heatIndex": 36.8505,
+    "wbgt": 26.466017500000007,
+    "vulnerability": 53.98333333333333
+  },
+  "scales": {
+    "temperature": 4.372386123922116,
+    "humidity": 15.006415294799758,
+    "heatIndex": 4.449352808742711,
+    "wbgt": 2.5117571441709385,
+    "vulnerability": 19.89195119193244
+  },
+  "intercept": -4.074475990046686,
+  "weights": [
+    0.7168857378819089,
+    -0.03128111592847102,
+    0.7436838147153563,
+    0.7002325483272432,
+    2.5237590927082567
+  ],
+  "warning": "Synthetic pipeline fixture only. Not mortality, hospitalization, or clinical evidence."
+}

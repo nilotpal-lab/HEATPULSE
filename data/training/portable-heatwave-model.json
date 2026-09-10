@@ -1,0 +1,104 @@
+{
+  "model_type": "portable_logistic_regression_heatwave_classifier",
+  "source_dataset": "Kaggle: rupsarroy/heatwave-dataset-rajasthan-india-2006-2025",
+  "source_url": "https://www.kaggle.com/datasets/rupsarroy/heatwave-dataset-rajasthan-india-2006-2025",
+  "source_license": "CC BY-SA 4.0",
+  "target": "HEATWAVE",
+  "target_meaning": "Uploaded dataset binary label: 0 normal day, 1 heatwave event",
+  "health_outcome_model": false,
+  "portable_across_cities": true,
+  "training_domain": "Nine Rajasthan districts; transfer scoring for compatible meteorological inputs is indicative, not locally validated.",
+  "rows": 21960,
+  "train_rows": 14274,
+  "validation_rows": 3294,
+  "test_rows": 4392,
+  "features": [
+    "temperature_c",
+    "tmax_c",
+    "tmin_c",
+    "dewpoint_c",
+    "wind_speed",
+    "radiation",
+    "latitude",
+    "longitude",
+    "month",
+    "day"
+  ],
+  "input_units": {
+    "temperature_c": "degC",
+    "tmax_c": "degC",
+    "tmin_c": "degC",
+    "dewpoint_c": "degC",
+    "wind_speed": "m/s",
+    "radiation": "provider radiation units",
+    "latitude": "deg",
+    "longitude": "deg",
+    "month": "1-12",
+    "day": "1-31"
+  },
+  "means": {
+    "temperature_c": 37.397653399187234,
+    "tmax_c": 37.02093264606948,
+    "tmin_c": 36.561460767128835,
+    "dewpoint_c": 11.446687025360887,
+    "wind_speed": 3.951920358880078,
+    "radiation": 3039307.823455233,
+    "latitude": 27.194444444444443,
+    "longitude": 73.66666666666667,
+    "month": 4.491803278688525,
+    "day": 15.754098360655737
+  },
+  "scales": {
+    "temperature_c": 4.726761432197377,
+    "tmax_c": 4.670208965295742,
+    "tmin_c": 4.676737108055344,
+    "dewpoint_c": 6.771876267293303,
+    "wind_speed": 2.106832735958661,
+    "radiation": 366676.2005502406,
+    "latitude": 1.3528661846539674,
+    "longitude": 1.5986105077708779,
+    "month": 1.118003941746085,
+    "day": 8.806956523308125
+  },
+  "intercept": -2.902312557035846,
+  "weights": [
+    1.0963109062000318,
+    1.0939105653188936,
+    1.097049923886251,
+    -0.37195875551814567,
+    0.1357237698332161,
+    -0.1816719393446354,
+    0.014877999002094107,
+    0.02617422633000365,
+    0.06116855318257278,
+    -0.002457426934739401
+  ],
+  "threshold": 0.8200000000000001,
+  "metrics": {
+    "validation": {
+      "accuracy": 0.9942319368548876,
+      "precision": 0.9328358208955224,
+      "recall": 0.9259259259259259,
+      "f1": 0.929368029739777,
+      "confusion": {
+        "truePositive": 125,
+        "falsePositive": 9,
+        "trueNegative": 3150,
+        "falseNegative": 10
+      }
+    },
+    "test": {
+      "accuracy": 0.9842896174863388,
+      "precision": 0.8816326530612245,
+      "recall": 0.84375,
+      "f1": 0.8622754491017965,
+      "confusion": {
+        "truePositive": 216,
+        "falsePositive": 29,
+        "trueNegative": 4107,
+        "falseNegative": 40
+      }
+    }
+  },
+  "warning": "Heatwave classifier only. Transfer predictions outside Rajasthan are indicative and not mortality, hospitalization, or clinical predictions."
+}

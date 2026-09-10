@@ -1,0 +1,20 @@
+{
+  "country": "India",
+  "indicator": "Death rate, crude (per 1,000 people)",
+  "indicator_code": "SP.DYN.CDRT.IN",
+  "source": "World Bank World Development Indicators",
+  "source_url": "https://api.worldbank.org/v2/en/indicator/SP.DYN.CDRT.IN?downloadformat=csv",
+  "publisher_source": "UN World Population Prospects; national statistical sources",
+  "downloaded_at": "2026-09-08",
+  "geography": "national",
+  "time_resolution": "annual",
+  "label_role": "prior_only",
+  "may_be_used_as_observed_ward_target": false,
+  "values_deaths_per_1000": {
+    "2020": 7.214,
+    "2021": 9.259,
+    "2022": 6.576,
+    "2023": 6.611,
+    "2024": 6.587
+  }
+}

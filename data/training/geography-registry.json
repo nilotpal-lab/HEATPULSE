@@ -1,0 +1,613 @@
+{
+  "dataset_name": "HeatPulse Geography Registry",
+  "generated_at": "2026-09-08",
+  "purpose": "Training-data geography join registry only",
+  "warning": "This dataset contains geography metadata only. It contains no mortality, hospitalization, population, vulnerability, or synthetic health labels.",
+  "records": [
+    {
+      "record_type": "state_or_union_territory",
+      "id": "in-ap",
+      "name": "Andhra Pradesh",
+      "state_key": "andhra pradesh",
+      "capital": "Amaravati",
+      "coordinates": [
+        80.5518,
+        16.5154
+      ],
+      "iso_code": "IN-AP",
+      "coordinate_role": "capital_sampling_point",
+      "source": "heatpulse/src/lib/india-state-centroids.ts",
+      "data_status": "verified_registry_metadata"
+    },
+    {
+      "record_type": "state_or_union_territory",
+      "id": "in-ar",
+      "name": "Arunachal Pradesh",
+      "state_key": "arunachal pradesh",
+      "capital": "Itanagar",
+      "coordinates": [
+        93.6053,
+        27.0844
+      ],
+      "iso_code": "IN-AR",
+      "coordinate_role": "capital_sampling_point",
+      "source": "heatpulse/src/lib/india-state-centroids.ts",
+      "data_status": "verified_registry_metadata"
+    },
+    {
+      "record_type": "state_or_union_territory",
+      "id": "in-as",
+      "name": "Assam",
+      "state_key": "assam",
+      "capital": "Dispur",
+      "coordinates": [
+        91.7898,
+        26.1445
+      ],
+      "iso_code": "IN-AS",
+      "coordinate_role": "capital_sampling_point",
+      "source": "heatpulse/src/lib/india-state-centroids.ts",
+      "data_status": "verified_registry_metadata"
+    },
+    {
+      "record_type": "state_or_union_territory",
+      "id": "in-br",
+      "name": "Bihar",
+      "state_key": "bihar",
+      "capital": "Patna",
+      "coordinates": [
+        85.1376,
+        25.5941
+      ],
+      "iso_code": "IN-BR",
+      "coordinate_role": "capital_sampling_point",
+      "source": "heatpulse/src/lib/india-state-centroids.ts",
+      "data_status": "verified_registry_metadata"
+    },
+    {
+      "record_type": "state_or_union_territory",
+      "id": "in-cg",
+      "name": "Chhattisgarh",
+      "state_key": "chhattisgarh",
+      "capital": "Raipur",
+      "coordinates": [
+        81.6296,
+        21.2514
+      ],
+      "iso_code": "IN-CG",
+      "coordinate_role": "capital_sampling_point",
+      "source": "heatpulse/src/lib/india-state-centroids.ts",
+      "data_status": "verified_registry_metadata"
+    },
+    {
+      "record_type": "state_or_union_territory",
+      "id": "in-ga",
+      "name": "Goa",
+      "state_key": "goa",
+      "capital": "Panaji",
+      "coordinates": [
+        73.8278,
+        15.4909
+      ],
+      "iso_code": "IN-GA",
+      "coordinate_role": "capital_sampling_point",
+      "source": "heatpulse/src/lib/india-state-centroids.ts",
+      "data_status": "verified_registry_metadata"
+    },
+    {
+      "record_type": "state_or_union_territory",
+      "id": "in-gj",
+      "name": "Gujarat",
+      "state_key": "gujarat",
+      "capital": "Gandhinagar",
+      "coordinates": [
+        72.6369,
+        23.2156
+      ],
+      "iso_code": "IN-GJ",
+      "coordinate_role": "capital_sampling_point",
+      "source": "heatpulse/src/lib/india-state-centroids.ts",
+      "data_status": "verified_registry_metadata"
+    },
+    {
+      "record_type": "state_or_union_territory",
+      "id": "in-hr",
+      "name": "Haryana",
+      "state_key": "haryana",
+      "capital": "Chandigarh",
+      "coordinates": [
+        76.7794,
+        30.7333
+      ],
+      "iso_code": "IN-HR",
+      "coordinate_role": "capital_sampling_point",
+      "source": "heatpulse/src/lib/india-state-centroids.ts",
+      "data_status": "verified_registry_metadata"
+    },
+    {
+      "record_type": "state_or_union_territory",
+      "id": "in-hp",
+      "name": "Himachal Pradesh",
+      "state_key": "himachal pradesh",
+      "capital": "Shimla",
+      "coordinates": [
+        77.1734,
+        31.1048
+      ],
+      "iso_code": "IN-HP",
+      "coordinate_role": "capital_sampling_point",
+      "source": "heatpulse/src/lib/india-state-centroids.ts",
+      "data_status": "verified_registry_metadata"
+    },
+    {
+      "record_type": "state_or_union_territory",
+      "id": "in-jh",
+      "name": "Jharkhand",
+      "state_key": "jharkhand",
+      "capital": "Ranchi",
+      "coordinates": [
+        85.3096,
+        23.3441
+      ],
+      "iso_code": "IN-JH",
+      "coordinate_role": "capital_sampling_point",
+      "source": "heatpulse/src/lib/india-state-centroids.ts",
+      "data_status": "verified_registry_metadata"
+    },
+    {
+      "record_type": "state_or_union_territory",
+      "id": "in-ka",
+      "name": "Karnataka",
+      "state_key": "karnataka",
+      "capital": "Bengaluru",
+      "coordinates": [
+        77.5946,
+        12.9716
+      ],
+      "iso_code": "IN-KA",
+      "coordinate_role": "capital_sampling_point",
+      "source": "heatpulse/src/lib/india-state-centroids.ts",
+      "data_status": "verified_registry_metadata"
+    },
+    {
+      "record_type": "state_or_union_territory",
+      "id": "in-kl",
+      "name": "Kerala",
+      "state_key": "kerala",
+      "capital": "Thiruvananthapuram",
+      "coordinates": [
+        76.9366,
+        8.5241
+      ],
+      "iso_code": "IN-KL",
+      "coordinate_role": "capital_sampling_point",
+      "source": "heatpulse/src/lib/india-state-centroids.ts",
+      "data_status": "verified_registry_metadata"
+    },
+    {
+      "record_type": "state_or_union_territory",
+      "id": "in-mp",
+      "name": "Madhya Pradesh",
+      "state_key": "madhya pradesh",
+      "capital": "Bhopal",
+      "coordinates": [
+        77.4126,
+        23.2599
+      ],
+      "iso_code": "IN-MP",
+      "coordinate_role": "capital_sampling_point",
+      "source": "heatpulse/src/lib/india-state-centroids.ts",
+      "data_status": "verified_registry_metadata"
+    },
+    {
+      "record_type": "state_or_union_territory",
+      "id": "in-mh",
+      "name": "Maharashtra",
+      "state_key": "maharashtra",
+      "capital": "Mumbai",
+      "coordinates": [
+        72.8777,
+        19.076
+      ],
+      "iso_code": "IN-MH",
+      "coordinate_role": "capital_sampling_point",
+      "source": "heatpulse/src/lib/india-state-centroids.ts",
+      "data_status": "verified_registry_metadata"
+    },
+    {
+      "record_type": "state_or_union_territory",
+      "id": "in-mn",
+      "name": "Manipur",
+      "state_key": "manipur",
+      "capital": "Imphal",
+      "coordinates": [
+        93.9368,
+        24.817
+      ],
+      "iso_code": "IN-MN",
+      "coordinate_role": "capital_sampling_point",
+      "source": "heatpulse/src/lib/india-state-centroids.ts",
+      "data_status": "verified_registry_metadata"
+    },
+    {
+      "record_type": "state_or_union_territory",
+      "id": "in-ml",
+      "name": "Meghalaya",
+      "state_key": "meghalaya",
+      "capital": "Shillong",
+      "coordinates": [
+        91.8933,
+        25.5788
+      ],
+      "iso_code": "IN-ML",
+      "coordinate_role": "capital_sampling_point",
+      "source": "heatpulse/src/lib/india-state-centroids.ts",
+      "data_status": "verified_registry_metadata"
+    },
+    {
+      "record_type": "state_or_union_territory",
+      "id": "in-mz",
+      "name": "Mizoram",
+      "state_key": "mizoram",
+      "capital": "Aizawl",
+      "coordinates": [
+        92.7176,
+        23.7271
+      ],
+      "iso_code": "IN-MZ",
+      "coordinate_role": "capital_sampling_point",
+      "source": "heatpulse/src/lib/india-state-centroids.ts",
+      "data_status": "verified_registry_metadata"
+    },
+    {
+      "record_type": "state_or_union_territory",
+      "id": "in-nl",
+      "name": "Nagaland",
+      "state_key": "nagaland",
+      "capital": "Kohima",
+      "coordinates": [
+        94.1086,
+        25.6647
+      ],
+      "iso_code": "IN-NL",
+      "coordinate_role": "capital_sampling_point",
+      "source": "heatpulse/src/lib/india-state-centroids.ts",
+      "data_status": "verified_registry_metadata"
+    },
+    {
+      "record_type": "state_or_union_territory",
+      "id": "in-or",
+      "name": "Odisha",
+      "state_key": "odisha",
+      "capital": "Bhubaneswar",
+      "coordinates": [
+        85.8245,
+        20.2961
+      ],
+      "iso_code": "IN-OR",
+      "coordinate_role": "capital_sampling_point",
+      "source": "heatpulse/src/lib/india-state-centroids.ts",
+      "data_status": "verified_registry_metadata"
+    },
+    {
+      "record_type": "state_or_union_territory",
+      "id": "in-pb",
+      "name": "Punjab",
+      "state_key": "punjab",
+      "capital": "Chandigarh",
+      "coordinates": [
+        76.7794,
+        30.7333
+      ],
+      "iso_code": "IN-PB",
+      "coordinate_role": "capital_sampling_point",
+      "source": "heatpulse/src/lib/india-state-centroids.ts",
+      "data_status": "verified_registry_metadata"
+    },
+    {
+      "record_type": "state_or_union_territory",
+      "id": "in-rj",
+      "name": "Rajasthan",
+      "state_key": "rajasthan",
+      "capital": "Jaipur",
+      "coordinates": [
+        75.7873,
+        26.9124
+      ],
+      "iso_code": "IN-RJ",
+      "coordinate_role": "capital_sampling_point",
+      "source": "heatpulse/src/lib/india-state-centroids.ts",
+      "data_status": "verified_registry_metadata"
+    },
+    {
+      "record_type": "state_or_union_territory",
+      "id": "in-sk",
+      "name": "Sikkim",
+      "state_key": "sikkim",
+      "capital": "Gangtok",
+      "coordinates": [
+        88.6065,
+        27.3389
+      ],
+      "iso_code": "IN-SK",
+      "coordinate_role": "capital_sampling_point",
+      "source": "heatpulse/src/lib/india-state-centroids.ts",
+      "data_status": "verified_registry_metadata"
+    },
+    {
+      "record_type": "state_or_union_territory",
+      "id": "in-tn",
+      "name": "Tamil Nadu",
+      "state_key": "tamil nadu",
+      "capital": "Chennai",
+      "coordinates": [
+        80.2707,
+        13.0827
+      ],
+      "iso_code": "IN-TN",
+      "coordinate_role": "capital_sampling_point",
+      "source": "heatpulse/src/lib/india-state-centroids.ts",
+      "data_status": "verified_registry_metadata"
+    },
+    {
+      "record_type": "state_or_union_territory",
+      "id": "in-tg",
+      "name": "Telangana",
+      "state_key": "telangana",
+      "capital": "Hyderabad",
+      "coordinates": [
+        78.4867,
+        17.385
+      ],
+      "iso_code": "IN-TG",
+      "coordinate_role": "capital_sampling_point",
+      "source": "heatpulse/src/lib/india-state-centroids.ts",
+      "data_status": "verified_registry_metadata"
+    },
+    {
+      "record_type": "state_or_union_territory",
+      "id": "in-tr",
+      "name": "Tripura",
+      "state_key": "tripura",
+      "capital": "Agartala",
+      "coordinates": [
+        91.2868,
+        23.8315
+      ],
+      "iso_code": "IN-TR",
+      "coordinate_role": "capital_sampling_point",
+      "source": "heatpulse/src/lib/india-state-centroids.ts",
+      "data_status": "verified_registry_metadata"
+    },
+    {
+      "record_type": "state_or_union_territory",
+      "id": "in-up",
+      "name": "Uttar Pradesh",
+      "state_key": "uttar pradesh",
+      "capital": "Lucknow",
+      "coordinates": [
+        80.9462,
+        26.8467
+      ],
+      "iso_code": "IN-UP",
+      "coordinate_role": "capital_sampling_point",
+      "source": "heatpulse/src/lib/india-state-centroids.ts",
+      "data_status": "verified_registry_metadata"
+    },
+    {
+      "record_type": "state_or_union_territory",
+      "id": "in-ut",
+      "name": "Uttarakhand",
+      "state_key": "uttarakhand",
+      "capital": "Dehradun",
+      "coordinates": [
+        78.0322,
+        30.3165
+      ],
+      "iso_code": "IN-UT",
+      "coordinate_role": "capital_sampling_point",
+      "source": "heatpulse/src/lib/india-state-centroids.ts",
+      "data_status": "verified_registry_metadata"
+    },
+    {
+      "record_type": "state_or_union_territory",
+      "id": "in-wb",
+      "name": "West Bengal",
+      "state_key": "west bengal",
+      "capital": "Kolkata",
+      "coordinates": [
+        88.3639,
+        22.5726
+      ],
+      "iso_code": "IN-WB",
+      "coordinate_role": "capital_sampling_point",
+      "source": "heatpulse/src/lib/india-state-centroids.ts",
+      "data_status": "verified_registry_metadata"
+    },
+    {
+      "record_type": "state_or_union_territory",
+      "id": "in-an",
+      "name": "Andaman & Nicobar Islands",
+      "state_key": "andaman and nicobar islands",
+      "capital": "Port Blair",
+      "coordinates": [
+        92.7265,
+        11.6234
+      ],
+      "iso_code": "IN-AN",
+      "coordinate_role": "capital_sampling_point",
+      "source": "heatpulse/src/lib/india-state-centroids.ts",
+      "data_status": "verified_registry_metadata"
+    },
+    {
+      "record_type": "state_or_union_territory",
+      "id": "in-ch",
+      "name": "Chandigarh",
+      "state_key": "chandigarh",
+      "capital": "Chandigarh",
+      "coordinates": [
+        76.7794,
+        30.7333
+      ],
+      "iso_code": "IN-CH",
+      "coordinate_role": "capital_sampling_point",
+      "source": "heatpulse/src/lib/india-state-centroids.ts",
+      "data_status": "verified_registry_metadata"
+    },
+    {
+      "record_type": "state_or_union_territory",
+      "id": "in-dh",
+      "name": "Dadra & Nagar Haveli and Daman & Diu",
+      "state_key": "dadra and nagar haveli and daman and diu",
+      "capital": "Daman",
+      "coordinates": [
+        72.8328,
+        20.3974
+      ],
+      "iso_code": "IN-DH",
+      "coordinate_role": "capital_sampling_point",
+      "source": "heatpulse/src/lib/india-state-centroids.ts",
+      "data_status": "verified_registry_metadata"
+    },
+    {
+      "record_type": "state_or_union_territory",
+      "id": "in-dl",
+      "name": "Delhi",
+      "state_key": "delhi",
+      "capital": "New Delhi",
+      "coordinates": [
+        77.209,
+        28.6139
+      ],
+      "iso_code": "IN-DL",
+      "coordinate_role": "capital_sampling_point",
+      "source": "heatpulse/src/lib/india-state-centroids.ts",
+      "data_status": "verified_registry_metadata"
+    },
+    {
+      "record_type": "state_or_union_territory",
+      "id": "in-jk",
+      "name": "Jammu & Kashmir",
+      "state_key": "jammu and kashmir",
+      "capital": "Srinagar",
+      "coordinates": [
+        74.7973,
+        34.0837
+      ],
+      "iso_code": "IN-JK",
+      "coordinate_role": "capital_sampling_point",
+      "source": "heatpulse/src/lib/india-state-centroids.ts",
+      "data_status": "verified_registry_metadata"
+    },
+    {
+      "record_type": "state_or_union_territory",
+      "id": "in-la",
+      "name": "Ladakh",
+      "state_key": "ladakh",
+      "capital": "Leh",
+      "coordinates": [
+        77.5772,
+        34.1526
+      ],
+      "iso_code": "IN-LA",
+      "coordinate_role": "capital_sampling_point",
+      "source": "heatpulse/src/lib/india-state-centroids.ts",
+      "data_status": "verified_registry_metadata"
+    },
+    {
+      "record_type": "state_or_union_territory",
+      "id": "in-ld",
+      "name": "Lakshadweep",
+      "state_key": "lakshadweep",
+      "capital": "Kavaratti",
+      "coordinates": [
+        72.6358,
+        10.5669
+      ],
+      "iso_code": "IN-LD",
+      "coordinate_role": "capital_sampling_point",
+      "source": "heatpulse/src/lib/india-state-centroids.ts",
+      "data_status": "verified_registry_metadata"
+    },
+    {
+      "record_type": "state_or_union_territory",
+      "id": "in-py",
+      "name": "Puducherry",
+      "state_key": "puducherry",
+      "capital": "Puducherry",
+      "coordinates": [
+        79.8083,
+        11.9416
+      ],
+      "iso_code": "IN-PY",
+      "coordinate_role": "capital_sampling_point",
+      "source": "heatpulse/src/lib/india-state-centroids.ts",
+      "data_status": "verified_registry_metadata"
+    },
+    {
+      "record_type": "monitored_district",
+      "id": "bengaluru-urban",
+      "name": "Bengaluru Urban",
+      "state": "Karnataka",
+      "city_id": "bengaluru",
+      "source": "heatpulse/src/lib/imd-service.ts",
+      "data_status": "verified_registry_metadata",
+      "health_outcomes_present": false
+    },
+    {
+      "record_type": "monitored_district",
+      "id": "pune",
+      "name": "Pune",
+      "state": "Maharashtra",
+      "city_id": "pune",
+      "source": "heatpulse/src/lib/imd-service.ts",
+      "data_status": "verified_registry_metadata",
+      "health_outcomes_present": false
+    },
+    {
+      "record_type": "monitored_district",
+      "id": "mumbai-suburban",
+      "name": "Mumbai Suburban",
+      "state": "Maharashtra",
+      "city_id": "mumbai",
+      "source": "heatpulse/src/lib/imd-service.ts",
+      "data_status": "verified_registry_metadata",
+      "health_outcomes_present": false
+    },
+    {
+      "record_type": "monitored_district",
+      "id": "kolkata",
+      "name": "Kolkata",
+      "state": "West Bengal",
+      "city_id": "kolkata",
+      "source": "heatpulse/src/lib/imd-service.ts",
+      "data_status": "verified_registry_metadata",
+      "health_outcomes_present": false
+    },
+    {
+      "record_type": "monitored_district",
+      "id": "chennai",
+      "name": "Chennai",
+      "state": "Tamil Nadu",
+      "city_id": "chennai",
+      "source": "heatpulse/src/lib/imd-service.ts",
+      "data_status": "verified_registry_metadata",
+      "health_outcomes_present": false
+    },
+    {
+      "record_type": "monitored_district",
+      "id": "coimbatore",
+      "name": "Coimbatore",
+      "state": "Tamil Nadu",
+      "city_id": "coimbatore",
+      "source": "heatpulse/src/lib/imd-service.ts",
+      "data_status": "verified_registry_metadata",
+      "health_outcomes_present": false
+    }
+  ],
+  "counts": {
+    "states_and_union_territories": 36,
+    "monitored_districts": 6,
+    "total_records": 42
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "model_type": "logistic_regression_weather_benchmark",
+  "target": "thermal_stress_band",
+  "label_source": "derived_from_real_nasa_power_weather",
+  "health_outcome_model": false,
+  "source": "NASA POWER daily point API",
+  "source_url": "https://power.larc.nasa.gov/api/temporal/daily/point",
+  "date_range": {
+    "start": "20000101",
+    "end": "20241231"
+  },
+  "locations": 36,
+  "rows": 328752,
+  "train_rows": 289296,
+  "test_rows": 39456,
+  "time_split": "2022-01-01",
+  "test_accuracy": 0.9995,
+  "features": [
+    "temperature",
+    "humidity",
+    "wind",
+    "radiation",
+    "rainfall",
+    "heat_index",
+    "wbgt"
+  ],
+  "means": {
+    "temperature": 23.090256968641096,
+    "humidity": 64.39627606326958,
+    "wind": 3.057857765057327,
+    "radiation": 17.81754303550652,
+    "rainfall": 3.8635445357011453,
+    "heat_index": 25.204895586527318,
+    "wbgt": 24.778647810064882
+  },
+  "scales": {
+    "temperature": 8.296191878095375,
+    "humidity": 21.314576379538497,
+    "wind": 1.5639557913369029,
+    "radiation": 5.272164102279396,
+    "rainfall": 9.606794770619613,
+    "heat_index": 8.503100193481112,
+    "wbgt": 7.677449208566697
+  },
+  "intercept": -2.758838968918833,
+  "weights": [
+    0.0009965055630164067,
+    -0.0014482377115844515,
+    0.0002518665909999038,
+    -0.0000042404386253462,
+    -0.00011988598833635774,
+    0.0007661099449373022,
+    0.00037454841519072093
+  ],
+  "warning": "Weather/thermal benchmark only. This does not predict mortality, hospitalization, or heat illness."
+}
