@@ -1,9 +1,10 @@
 /**
- * HeatPulse — Official IMD District Reference Warnings API Route
+ * HeatPulse — District Heat Evaluation API Route (IMD-criteria based)
  * GET /api/imd?city=pune
- * 
- * Returns official IMD district-scale reference warning bulletins.
- * Segregated from HeatPulse ward-localized thermal advisories.
+ *
+ * Returns district-scale heat evaluations computed locally by HeatPulse using
+ * IMD's published threshold criteria. NOT official IMD bulletins — see
+ * src/lib/imd-service.ts provenance note.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -33,18 +34,20 @@ export async function GET(request: NextRequest) {
       }
 
       const warning = evaluateImdDistrictWarning(cityParam, tmax);
+      // Canonical response shape: { success, data } for single-district queries.
       return NextResponse.json({
         success: true,
         data: warning,
       });
     }
 
-    // Return all 6 districts
+    // Return all 6 districts — keep the { success, data } shape so API and
+    // store consumers agree (previously { districts } mismatched the store).
     const allWarnings = getAllImdDistrictWarnings();
     return NextResponse.json({
       success: true,
+      data: allWarnings,
       count: Object.keys(allWarnings).length,
-      districts: allWarnings,
     });
   } catch (err) {
     console.error('IMD District Warning API error:', err);

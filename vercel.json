@@ -1,8 +1,1 @@
-{
-  "crons": [
-    {
-      "path": "/api/cron/thermal",
-      "schedule": "0 */6 * * *"
-    }
-  ]
-}
+{}

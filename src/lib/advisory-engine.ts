@@ -21,7 +21,11 @@
  * Zero synthetic health-outcome or mortality figures.
  */
 
-import { ThermalStressLevel, VulnerabilityLevel } from '../types/thermal';
+import type { ThermalStressLevel, VulnerabilityLevel } from '../types/thermal';
+import {
+  THERMAL_STRESS_THRESHOLDS,
+  COMPOSITE_RISK_THRESHOLDS,
+} from './threshold-config';
 
 // ============================================================================
 // Advisory Types
@@ -72,13 +76,13 @@ export function classifyAdvisoryGrade(
   thermalStress: ThermalStressLevel,
   vulnerabilityLevel: VulnerabilityLevel
 ): AdvisoryGrade {
-  // Thermal-derived grade
+  // Thermal-derived grade — thresholds mirror threshold-config (single source).
   let thermalGrade: AdvisoryGrade;
-  if (heatIndex >= 41.0 || wbgt >= 32.0) {
+  if (heatIndex >= THERMAL_STRESS_THRESHOLDS.severeHi || wbgt >= THERMAL_STRESS_THRESHOLDS.severeWbgt) {
     thermalGrade = 'red';
-  } else if (heatIndex >= 32.0 || wbgt >= 30.0) {
+  } else if (heatIndex >= THERMAL_STRESS_THRESHOLDS.highHi || wbgt >= THERMAL_STRESS_THRESHOLDS.highWbgt) {
     thermalGrade = 'orange';
-  } else if (heatIndex >= 27.0 || wbgt >= 28.0) {
+  } else if (heatIndex >= THERMAL_STRESS_THRESHOLDS.moderateHi || wbgt >= THERMAL_STRESS_THRESHOLDS.moderateWbgt) {
     thermalGrade = 'yellow';
   } else {
     thermalGrade = 'green';
@@ -86,11 +90,11 @@ export function classifyAdvisoryGrade(
 
   // Risk-derived grade (thermal + vulnerability composite)
   let riskGrade: AdvisoryGrade;
-  if (compositeRiskScore >= 70) {
+  if (compositeRiskScore >= COMPOSITE_RISK_THRESHOLDS.severe) {
     riskGrade = 'red';
-  } else if (compositeRiskScore >= 50) {
+  } else if (compositeRiskScore >= COMPOSITE_RISK_THRESHOLDS.high) {
     riskGrade = 'orange';
-  } else if (compositeRiskScore >= 30) {
+  } else if (compositeRiskScore >= COMPOSITE_RISK_THRESHOLDS.moderate) {
     riskGrade = 'yellow';
   } else {
     riskGrade = 'green';

@@ -11,7 +11,7 @@
  * 3. Standardized 3-Block Summary (Strict separation of CURRENT vs FORECAST PEAK):
  *    - Section A: CURRENT CONDITIONS displaying current-hour Air Temp, RH, Wind Speed, WBGT, and Thermal Status.
  *    - Section B: FORECAST PEAK (NEXT 120 HOURS) displaying Peak WBGT, Peak Date, Peak Time, and Count of affected wards.
- *    - Block 3: Official IMD District Reference (Official district bulletin, color code, alert level).
+ *    - Block 3: District Heat Evaluation — HeatPulse local evaluation of IMD criteria (color code, alert level). NOT an official IMD bulletin.
  * 4. OpenLayers MapContainer with primary ISRO NRSC Bhuvan WMS, OSM fallback, and LayerSwitcher.
  * 5. 3 to 5 Day Heatwave Early Warning & Thermal Trajectory Outlook.
  * 6. Integrated Right-Side Ward Detail Drawer preserving map visibility.
@@ -33,6 +33,9 @@ import MapContainer from '@/components/map/MapContainer';
 import WardDetailDrawer from '@/components/drawer/WardDetailDrawer';
 import { evaluateImdDistrictWarning } from '@/lib/imd-service';
 import { calculateHeatIndex, calculateWBGT } from '@/lib/thermal-engine';
+import {
+  THERMAL_STRESS_THRESHOLDS,
+} from '@/lib/threshold-config';
 import HeatwaveModelStatus from '@/components/HeatwaveModelStatus';
 
 export default function CityOverviewPage() {
@@ -163,26 +166,26 @@ export default function CityOverviewPage() {
       const peakDate = formatDateIST(peakIsoTime);
       const peakHourStr = formatToIST(peakIsoTime);
 
-      // Count affected wards at peak hour (WBGT >= 29.0°C High/Severe)
+      // Count affected wards at peak hour (WBGT at/above the High band onset)
       let affectedWardsCount = 0;
       for (const wf of forecastList) {
         const t = wf.hourly.temperature_2m[peakHourIdx];
         const rh = wf.hourly.relative_humidity_2m[peakHourIdx];
         if (t != null && rh != null) {
           const w = calculateWBGT(t, rh);
-          if (w >= 29.0) affectedWardsCount++;
+          if (w >= THERMAL_STRESS_THRESHOLDS.highWbgt) affectedWardsCount++;
         }
       }
 
       let severityBadge = 'bg-emerald-100 text-emerald-800 border-emerald-300';
       let severityLabel = 'Low Load';
-      if (globalMaxWbgt >= 32.0) {
+      if (globalMaxWbgt >= THERMAL_STRESS_THRESHOLDS.severeWbgt) {
         severityBadge = 'bg-red-100 text-red-800 border-red-300';
         severityLabel = 'Severe Peak';
-      } else if (globalMaxWbgt >= 30.0) {
+      } else if (globalMaxWbgt >= THERMAL_STRESS_THRESHOLDS.highWbgt) {
         severityBadge = 'bg-orange-100 text-orange-800 border-orange-300';
         severityLabel = 'High Peak';
-      } else if (globalMaxWbgt >= 28.0) {
+      } else if (globalMaxWbgt >= THERMAL_STRESS_THRESHOLDS.moderateWbgt) {
         severityBadge = 'bg-amber-100 text-amber-800 border-amber-300';
         severityLabel = 'Moderate Peak';
       }
@@ -213,9 +216,9 @@ export default function CityOverviewPage() {
         peakTime: '14:00 – 16:00 IST',
         affectedCount,
         totalWards,
-        severityLabel: peakWbgt && peakWbgt >= 30 ? 'High Peak' : 'Moderate Peak',
+        severityLabel: peakWbgt && peakWbgt >= THERMAL_STRESS_THRESHOLDS.highWbgt ? 'High Peak' : 'Moderate Peak',
         severityBadge:
-          peakWbgt && peakWbgt >= 30
+          peakWbgt && peakWbgt >= THERMAL_STRESS_THRESHOLDS.highWbgt
             ? 'bg-orange-100 text-orange-800 border-orange-300'
             : 'bg-amber-100 text-amber-800 border-amber-300',
       };
@@ -231,7 +234,7 @@ export default function CityOverviewPage() {
       ? formatToIST(data.forecastMetadata.valid_time)
       : formatToIST(new Date().toISOString()));
 
-  // Official IMD District Warning evaluation (MoES / IMD Bulletin)
+  // District heat evaluation — HeatPulse applies IMD criteria to local forecast data (not an IMD bulletin)
   const imdWarning = useMemo(() => {
     return (
       data.imdWarning ||
@@ -304,13 +307,13 @@ export default function CityOverviewPage() {
 
         let alertLevel: 'Severe Alert' | 'High Watch' | 'Moderate' | 'Normal' = 'Normal';
         let alertBadge = 'bg-emerald-100 text-emerald-800 border-emerald-300';
-        if (wbgt >= 32.0 || heatIndex >= 41.0) {
+        if (wbgt >= THERMAL_STRESS_THRESHOLDS.severeWbgt || heatIndex >= THERMAL_STRESS_THRESHOLDS.severeHi) {
           alertLevel = 'Severe Alert';
           alertBadge = 'bg-red-100 text-red-800 border-red-300';
-        } else if (wbgt >= 30.0 || heatIndex >= 32.0) {
+        } else if (wbgt >= THERMAL_STRESS_THRESHOLDS.highWbgt || heatIndex >= THERMAL_STRESS_THRESHOLDS.highHi) {
           alertLevel = 'High Watch';
           alertBadge = 'bg-orange-100 text-orange-800 border-orange-300';
-        } else if (wbgt >= 28.0 || heatIndex >= 27.0) {
+        } else if (wbgt >= THERMAL_STRESS_THRESHOLDS.moderateWbgt || heatIndex >= THERMAL_STRESS_THRESHOLDS.moderateHi) {
           alertLevel = 'Moderate';
           alertBadge = 'bg-amber-100 text-amber-800 border-amber-300';
         }
@@ -322,7 +325,7 @@ export default function CityOverviewPage() {
           heatIndex,
           wbgt,
           isTropicalNight: tmin >= 25.0,
-          risk: wbgt >= 30.0 ? 'High' : wbgt >= 27.5 ? 'Moderate' : 'Low',
+          risk: wbgt >= THERMAL_STRESS_THRESHOLDS.highWbgt ? 'High' : wbgt >= THERMAL_STRESS_THRESHOLDS.moderateWbgt ? 'Moderate' : 'Low',
           alertLevel,
           alertBadge,
         };
@@ -330,29 +333,9 @@ export default function CityOverviewPage() {
     }
 
     if (data.wardRisks && data.wardRisks.length > 0) {
-      const temps = data.wardRisks.map((w) => w.currentTemp).filter((t) => t > 0);
-      const wbgts = data.wardRisks.map((w) => w.wbgt).filter((w) => w > 0);
-      const meanT = temps.length > 0 ? temps.reduce((a, b) => a + b, 0) / temps.length : 28.0;
-      const meanW = wbgts.length > 0 ? wbgts.reduce((a, b) => a + b, 0) / wbgts.length : 24.5;
-      const days = ['Today', 'Tomorrow', 'Day 3', 'Day 4', 'Day 5'];
-      return days.map((dayLabel, idx) => {
-        const offset = idx === 0 ? 0 : idx * 0.4;
-        const tmax = Math.round((meanT + offset) * 10) / 10;
-        const tmin = Math.round((tmax - 9.0) * 10) / 10;
-        const wbgt = Math.round((meanW + offset * 0.3) * 10) / 10;
-        const heatIndex = Math.round((tmax + 2.0) * 10) / 10;
-        return {
-          day: dayLabel,
-          tmax,
-          tmin,
-          heatIndex,
-          wbgt,
-          isTropicalNight: tmin >= 25.0,
-          risk: wbgt >= 30.0 ? 'High' : wbgt >= 27.5 ? 'Moderate' : 'Low',
-          alertLevel: wbgt >= 30 ? 'High Watch' : 'Normal',
-          alertBadge: 'bg-emerald-100 text-emerald-800 border-emerald-300',
-        };
-      });
+      // No genuine hourly NWP data on this path — keep the outlook unavailable
+      // rather than inventing a deterministic temperature drift.
+      return [];
     }
 
     return [];
@@ -707,7 +690,7 @@ export default function CityOverviewPage() {
                 <div className="flex items-center gap-2">
                   <ShieldAlert className="w-4 h-4 text-zinc-800" />
                   <span className="text-xs font-bold text-zinc-800 uppercase tracking-wider">
-                    3. Official IMD District
+                    3. District Heat Evaluation
                   </span>
                 </div>
                 <span
@@ -732,8 +715,8 @@ export default function CityOverviewPage() {
             </div>
 
             <div className="mt-3 pt-2.5 border-t border-zinc-300/60 flex items-center justify-between text-[10px] text-zinc-500">
-              <span className="italic">Official IMD District Scope (Segregated)</span>
-              <span className="font-medium text-zinc-700">MoES / IMD Govt of India</span>
+              <span className="italic">HeatPulse criteria-based evaluation — not an official IMD bulletin</span>
+              <span className="font-medium text-zinc-700">See IMD / MoES channels for official warnings</span>
             </div>
           </div>
         </section>

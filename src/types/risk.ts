@@ -59,9 +59,18 @@ export interface WardRisk {
   compositeRisk: number; // 0-100
   compositeRiskLevel: RiskLevel;
   recommendations: string[];
-  vulnerabilityGreenPct: number;
-  vulnerabilityBuildingDensity: number;
-  vulnerabilityWorkerDensity: number;
+  /** Component values are present ONLY when ward-level vulnerability data
+   *  exists. Absent = unavailable (not zero). */
+  vulnerabilityGreenPct?: number;
+  vulnerabilityBuildingDensity?: number;
+  vulnerabilityWorkerDensity?: number;
+  /** Provenance of the vulnerability score; status 'Unavailable' means score is 0. */
+  vulnerability_provenance?: {
+    status: string;
+    source: string;
+    geography?: string;
+    methodology?: string;
+  };
   updated_at: string;
 }
 

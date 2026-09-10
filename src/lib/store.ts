@@ -362,8 +362,12 @@ export const heatPulseActions = {
       const weatherForecasts: Record<string, WardWeatherForecast> =
         weatherData?.wards || {};
 
-      // Calculate or extract IMD Warning
-      let imdWarning: ImdDistrictWarning | null = imdData?.warning || null;
+      // Calculate or extract IMD-criteria evaluation. The canonical /api/imd
+      // shape is { success, data }; accept the legacy { warning } alias too.
+      let imdWarning: ImdDistrictWarning | null =
+        (imdData?.data as ImdDistrictWarning | undefined) ||
+        (imdData?.warning as ImdDistrictWarning | undefined) ||
+        null;
       if (!imdWarning) {
         const peakTemp = wardRisks.length > 0
           ? Math.max(...wardRisks.map((w) => w.currentTemp || 0))

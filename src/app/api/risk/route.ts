@@ -78,6 +78,12 @@ export async function GET(request: NextRequest) {
           vulnerabilityGreenPct: vuln.green_space_pct,
           vulnerabilityBuildingDensity: vuln.building_density,
           vulnerabilityWorkerDensity: vuln.outdoor_worker_density,
+          vulnerability_provenance: {
+            status: vuln.provenance.status,
+            source: vuln.provenance.source,
+            geography: vuln.provenance.geography,
+            methodology: vuln.provenance.methodology,
+          },
           updated_at: new Date().toISOString(),
         };
 
@@ -157,6 +163,12 @@ export async function GET(request: NextRequest) {
         vulnerabilityGreenPct: vuln.green_space_pct,
         vulnerabilityBuildingDensity: vuln.building_density,
         vulnerabilityWorkerDensity: vuln.outdoor_worker_density,
+        vulnerability_provenance: {
+          status: vuln.provenance.status,
+          source: vuln.provenance.source,
+          geography: vuln.provenance.geography,
+          methodology: vuln.provenance.methodology,
+        },
         updated_at: run.fetched_at,
       });
     }

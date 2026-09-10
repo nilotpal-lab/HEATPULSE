@@ -310,10 +310,10 @@ export default function HowItWorksPage() {
             <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-950 flex items-start gap-3">
               <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
               <div>
-                <strong className="block font-semibold">Segregated IMD District Warnings:</strong>
-                We never fabricate official IMD bulletins for individual municipal units. Official IMD bulletins are shown
-                exclusively at the district level alongside HeatPulse localized municipal thermal
-                advisories.
+                <strong className="block font-semibold">District Heat Evaluation (IMD criteria):</strong>
+                We never fabricate official IMD bulletins. The district-level heat evaluation applies IMD&apos;s published
+                criteria to local forecast data and is labeled as a HeatPulse evaluation — it is never presented as an
+                official IMD / MoES product. For official warnings, see IMD / MoES channels directly.
               </div>
             </div>
           </div>

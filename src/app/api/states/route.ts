@@ -19,6 +19,11 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { INDIA_STATE_CAPITALS } from '../../../lib/india-state-centroids';
+import { calculateHeatIndex, calculateWBGT } from '../../../lib/thermal-engine';
+import {
+  classifyHeatCondition,
+  classifyThermalStress,
+} from '../../../lib/threshold-config';
 
 const OPEN_METEO_BASE_URL =
   process.env.OPEN_METEO_URL ||
@@ -53,68 +58,31 @@ interface CacheEntry {
 let cache: CacheEntry | null = null;
 
 /**
- * Compute Heat Index (HI) from temperature (°C) and relative humidity (%).
- * Uses the Rothfusz regression (NOAA) adapted for Celsius.
+ * Single-source wrappers: HI/WBGT math + classification delegate to the
+ * production thermal engine and threshold-config (never duplicated here).
  */
-function computeHeatIndex(tempC: number, rh: number): number {
-  // Convert to Fahrenheit for the standard Rothfusz regression
-  const T = (tempC * 9) / 5 + 32;
-  const RH = rh;
-
-  // Simple Steadman formula if T < 80°F
-  if (T < 80) {
-    const hiF = 0.5 * (T + 61.0 + (T - 68.0) * 1.2 + RH * 0.094);
-    return ((hiF - 32) * 5) / 9;
-  }
-
-  let HI =
-    -42.379 +
-    2.04901523 * T +
-    10.14333127 * RH -
-    0.22475541 * T * RH -
-    0.00683783 * T * T -
-    0.05481717 * RH * RH +
-    0.00122874 * T * T * RH +
-    0.00085282 * T * RH * RH -
-    0.00000199 * T * T * RH * RH;
-
-  // Adjustment for low RH
-  if (RH < 13 && T >= 80 && T <= 112) {
-    HI -= ((13 - RH) / 4) * Math.sqrt((17 - Math.abs(T - 95)) / 17);
-  }
-  // Adjustment for high RH
-  if (RH > 85 && T >= 80 && T <= 87) {
-    HI += ((RH - 85) / 10) * ((87 - T) / 5);
-  }
-
-  // Convert back to Celsius
-  return ((HI - 32) * 5) / 9;
+function computeStateHeatIndex(tempC: number, rh: number): number {
+  return calculateHeatIndex(tempC, rh);
 }
 
-/**
- * Compute simplified WBGT (Wet-Bulb Globe Temperature) estimate.
- * Uses the Liljegren approximation for field use:
- * WBGT ≈ 0.567 × T_db + 0.393 × e + 3.94
- * where e = vapour pressure (kPa) ≈ 0.611 × exp(17.27 × T / (T + 237.3)) × (RH/100)
- */
-function computeWbgt(tempC: number, rh: number): number {
-  const e = 0.611 * Math.exp((17.27 * tempC) / (tempC + 237.3)) * (rh / 100);
-  return 0.567 * tempC + 0.393 * e + 3.94;
+function computeStateWbgt(tempC: number, rh: number): number {
+  return calculateWBGT(tempC, rh);
 }
 
-function classifyHeatCondition(tempC: number, hi: number): 'Normal' | 'Elevated' | 'High' | 'Extreme' {
-  const t = Math.max(tempC, hi);
-  if (t >= 54) return 'Extreme';
-  if (t >= 41) return 'High';
-  if (t >= 32) return 'Elevated';
-  return 'Normal';
+function classifyStateHeatCondition(
+  tempC: number
+): 'Normal' | 'Elevated' | 'High' | 'Extreme' {
+  // Heat-condition classification is defined on dry-bulb temperature in
+  // threshold-config; pass the dry-bulb value (not max(temp, HI)) so map,
+  // drawer, and API agree.
+  return classifyHeatCondition(tempC);
 }
 
-function classifyThermalStress(wbgt: number): 'Low' | 'Moderate' | 'High' | 'Severe' {
-  if (wbgt >= 32) return 'Severe';
-  if (wbgt >= 30) return 'High';
-  if (wbgt >= 28) return 'Moderate';
-  return 'Low';
+function classifyStateThermalStress(
+  wbgt: number,
+  heatIndex?: number
+): 'Low' | 'Moderate' | 'High' | 'Severe' {
+  return classifyThermalStress(heatIndex ?? 0, wbgt);
 }
 
 /**
@@ -217,8 +185,8 @@ async function fetchAllStateMetrics(): Promise<Record<string, StateThermalData>>
     const rh = raw.hourly.relative_humidity_2m[idx] ?? 50;
     const apparentTempC = raw.hourly.apparent_temperature[idx] ?? tempC;
 
-    const hi = computeHeatIndex(tempC, rh);
-    const wbgt = computeWbgt(tempC, rh);
+    const hi = computeStateHeatIndex(tempC, rh);
+    const wbgt = computeStateWbgt(tempC, rh);
 
     result[state.stateKey] = {
       stateKey: state.stateKey,
@@ -229,8 +197,8 @@ async function fetchAllStateMetrics(): Promise<Record<string, StateThermalData>>
       apparentTemperature: Math.round(apparentTempC * 10) / 10,
       heatIndex: Math.round(hi * 10) / 10,
       wbgt: Math.round(wbgt * 10) / 10,
-      heatCondition: classifyHeatCondition(tempC, hi),
-      thermalStress: classifyThermalStress(wbgt),
+      heatCondition: classifyStateHeatCondition(tempC),
+      thermalStress: classifyStateThermalStress(wbgt, hi),
       fetchedAt,
       status: 'fresh',
     };

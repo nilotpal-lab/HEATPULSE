@@ -58,34 +58,6 @@ export default function ForecastPage() {
   const [simSpeed, setSimSpeed] = useState<1 | 2>(1); // 1x = 1 hour/tick, 2x = 2 hours/tick
   const simIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Auto-advance simulation: steps through forecast hours in real time
-  // Does NOT interpolate values — only advances the index into existing NWP data
-  useEffect(() => {
-    if (isPlaying) {
-      simIntervalRef.current = setInterval(() => {
-        setSelectedHourIndex((prev) => {
-          const next = prev + simSpeed;
-          if (next >= 119) {
-            setIsPlaying(false); // Stop at end of forecast horizon
-            return 119;
-          }
-          return next;
-        });
-      }, 400); // 400ms per step → ~48s for full 120h at 1x
-    } else {
-      if (simIntervalRef.current) {
-        clearInterval(simIntervalRef.current);
-        simIntervalRef.current = null;
-      }
-    }
-    return () => {
-      if (simIntervalRef.current) {
-        clearInterval(simIntervalRef.current);
-        simIntervalRef.current = null;
-      }
-    };
-  }, [isPlaying, simSpeed]);
-
   // Load city data if not ready
   useEffect(() => {
     if (data.status === 'idle') {
@@ -104,7 +76,9 @@ export default function ForecastPage() {
     return Object.values(data.weatherForecasts)[0];
   }, [data.weatherForecasts, selectedWardKey]);
 
-  // Generate or extract 120-hour timeline points
+  // Generate or extract 120-hour timeline points from genuine NWP data only.
+  // When the forecast has not loaded yet, show an unavailable state — never a
+  // fabricated cosine-temperature synthesis.
   const timelinePoints = useMemo(() => {
     if (activeForecast?.hourly?.time && activeForecast.hourly.time.length >= 120) {
       const h = activeForecast.hourly;
@@ -133,35 +107,43 @@ export default function ForecastPage() {
       });
     }
 
-    // Deterministic 120-hour diurnal synthesis if forecast loading
-    const now = new Date();
-    return Array.from({ length: 120 }).map((_, i) => {
-      const pointTime = new Date(now.getTime() + i * 3600000);
-      const hour = pointTime.getHours();
-      const phase = ((hour - 14) / 24) * Math.PI * 2;
-      const diurnalDelta = Math.cos(phase) * 6.0;
-      const baseTemp = 34.0;
-      const temp = Math.round((baseTemp + diurnalDelta) * 10) / 10;
-      const hum = Math.max(30, Math.min(85, Math.round(55 - diurnalDelta * 3)));
-      const hi = calculateHeatIndex(temp, hum);
-      const wbgt = calculateWBGT(temp, hum);
-
-      return {
-        index: i,
-        time: pointTime.toISOString(),
-        temp,
-        humidity: hum,
-        heatIndex: hi,
-        wbgt,
-        utciProxy: Math.round((hi + 0.6) * 10) / 10,
-        windSpeed: Math.round((10 + Math.sin(i) * 4) * 10) / 10,
-        solarIrradiance: hour >= 6 && hour <= 18 ? Math.round(Math.sin(((hour - 6) / 12) * Math.PI) * 750) : 0,
-        surfacePressure: 1011,
-      };
-    });
+    return [];
   }, [activeForecast]);
 
-  const activePoint = timelinePoints[selectedHourIndex] || timelinePoints[0];
+  // Auto-advance simulation: steps through available NWP hours only.
+  // Does NOT interpolate values — only advances the index into existing NWP data.
+  const hasTimeline = timelinePoints.length > 0;
+  useEffect(() => {
+    if (!isPlaying) {
+      if (simIntervalRef.current) {
+        clearInterval(simIntervalRef.current);
+        simIntervalRef.current = null;
+      }
+      return;
+    }
+    if (!hasTimeline) return;
+    const endIndex = timelinePoints.length - 1;
+    simIntervalRef.current = setInterval(() => {
+        setSelectedHourIndex((prev) => {
+          const next = prev + simSpeed;
+          if (next >= endIndex) {
+            setIsPlaying(false); // Stop at end of available forecast
+            return endIndex;
+          }
+          return next;
+        });
+      }, 400);
+    return () => {
+      if (simIntervalRef.current) {
+        clearInterval(simIntervalRef.current);
+        simIntervalRef.current = null;
+      }
+    };
+  }, [isPlaying, simSpeed, timelinePoints.length, hasTimeline]);
+
+  const activePoint = timelinePoints.length > 0
+    ? timelinePoints[Math.min(selectedHourIndex, timelinePoints.length - 1)]
+    : null;
 
   // Daily statistics for 5 days
   const dailySummary = useMemo(() => {
@@ -261,12 +243,18 @@ export default function ForecastPage() {
               </span>
               <div className="text-lg font-extrabold text-zinc-900 mt-0.5 flex items-center gap-2">
                 <Clock className="w-4 h-4 text-orange-600" />
-                <span>
-                  {formatDateIST(activePoint.time)} · {formatToIST(activePoint.time)}
-                </span>
-                <span className="text-xs font-mono font-semibold px-2 py-0.5 bg-orange-100 text-orange-800 rounded-full">
-                  +{activePoint.index}h offset
-                </span>
+                {activePoint ? (
+                  <>
+                    <span>
+                      {formatDateIST(activePoint.time)} · {formatToIST(activePoint.time)}
+                    </span>
+                    <span className="text-xs font-mono font-semibold px-2 py-0.5 bg-orange-100 text-orange-800 rounded-full">
+                      +{activePoint.index}h offset
+                    </span>
+                  </>
+                ) : (
+                  <span className="text-sm font-semibold text-zinc-500">Forecast unavailable</span>
+                )}
               </div>
             </div>
 
@@ -307,7 +295,8 @@ export default function ForecastPage() {
             {/* Play / Pause */}
             <button
               type="button"
-              onClick={() => setIsPlaying((p) => !p)}
+              onClick={() => { if (hasTimeline) setIsPlaying((p) => !p); }}
+              disabled={!hasTimeline}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
                 isPlaying
                   ? 'bg-orange-600 text-white hover:bg-orange-700'
@@ -325,7 +314,7 @@ export default function ForecastPage() {
             {/* Step forward 1 hour */}
             <button
               type="button"
-              onClick={() => { setIsPlaying(false); setSelectedHourIndex((p) => Math.min(119, p + 1)); }}
+              onClick={() => { setIsPlaying(false); setSelectedHourIndex((p) => Math.min(Math.max(0, timelinePoints.length - 1), p + 1)); }}
               className="p-1.5 rounded-lg hover:bg-zinc-200 text-zinc-600 transition-colors"
               title="Step forward 1 hour"
               aria-label="Step forward one forecast hour"
@@ -336,9 +325,9 @@ export default function ForecastPage() {
             {/* Skip to end */}
             <button
               type="button"
-              onClick={() => { setIsPlaying(false); setSelectedHourIndex(119); }}
+              onClick={() => { setIsPlaying(false); setSelectedHourIndex(Math.max(0, timelinePoints.length - 1)); }}
               className="p-1.5 rounded-lg hover:bg-zinc-200 text-zinc-600 transition-colors"
-              title="Jump to hour 119"
+              title="Jump to end of available forecast"
               aria-label="Jump to end of forecast horizon"
             >
               <SkipForward className="w-4 h-4" />
@@ -357,7 +346,9 @@ export default function ForecastPage() {
 
             {/* Valid time label — always explicit, never "Now" */}
             <span className="ml-auto text-[10px] font-mono text-zinc-500 shrink-0">
-              Valid: {formatDateIST(activePoint.time)} {formatToIST(activePoint.time)} · +{activePoint.index}h
+              {activePoint
+                ? `Valid: ${formatDateIST(activePoint.time)} ${formatToIST(activePoint.time)} · +${activePoint.index}h`
+                : 'Forecast unavailable — waiting for NWP data'}
             </span>
           </div>
 
@@ -367,8 +358,8 @@ export default function ForecastPage() {
             <input
               type="range"
               min={0}
-              max={119}
-              value={selectedHourIndex}
+              max={timelinePoints.length > 0 ? timelinePoints.length - 1 : 0}
+              value={timelinePoints.length > 0 ? Math.min(selectedHourIndex, timelinePoints.length - 1) : 0}
               onChange={(e) => setSelectedHourIndex(parseInt(e.target.value, 10))}
               className="w-full h-2.5 bg-zinc-200 rounded-lg appearance-none cursor-pointer accent-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-500"
               aria-label="120-Hour Forecast Timeline Slider"
@@ -384,6 +375,7 @@ export default function ForecastPage() {
           </div>
 
           {/* Active Hour Metrics Grid */}
+          {activePoint ? (
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 pt-2">
             {/* Metric 1: Dry-Bulb Air Temp */}
             <div className="bg-zinc-50 border border-zinc-200/80 rounded-xl p-3 text-center">
@@ -435,6 +427,11 @@ export default function ForecastPage() {
               <div className="text-[10px] text-purple-700 mt-0.5">Apparent temperature</div>
             </div>
           </div>
+          ) : (
+          <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-xs text-zinc-600">
+            Forecast unavailable — ward-centroid NWP data has not loaded yet. No synthetic values are shown.
+          </div>
+          )}
         </section>
 
         {/* ============================================================ */}
@@ -458,7 +455,7 @@ export default function ForecastPage() {
             )}
           </button>
 
-          {expandMeteo && (
+          {expandMeteo && activePoint && (
             <div className="p-5 grid grid-cols-1 sm:grid-cols-3 gap-4 border-t border-zinc-200">
               <div className="bg-zinc-50 border border-zinc-200/80 rounded-xl p-3.5 flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg bg-teal-100 text-teal-700 flex items-center justify-center shrink-0">

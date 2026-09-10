@@ -20,6 +20,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCityForecast, WeatherUnavailableError } from '@/lib/weather-service';
 import { calculateThermalCalculations, classifyThermalStress } from '@/lib/thermal-engine';
+import { calculateThermalScore } from '@/lib/threshold-config';
 import { assessWardRisk, getWardVulnerability } from '@/lib/risk-engine';
 import { generateAdvisory } from '@/lib/advisory-engine';
 import { getWardCensusProfile } from '@/lib/census-data';
@@ -43,11 +44,18 @@ interface TwinWardData {
   vulnerability: {
     score: number;
     level: string;
-    green_space_pct: number;
-    building_density: number;
-    outdoor_worker_density: number;
+    /** Present ONLY when ward-level data exists; absent = unavailable. */
+    green_space_pct?: number;
+    building_density?: number;
+    outdoor_worker_density?: number;
     is_estimated_baseline: boolean;
     data_source: string;
+    provenance: {
+      status: string;
+      source: string;
+      geography?: string;
+      methodology?: string;
+    };
     census?: {
       population: number;
       elderly_pct: number;
@@ -196,11 +204,19 @@ export async function GET(request: NextRequest) {
         vulnerability: {
           score: vulnerability.score,
           level: vulnerability.level,
+          // Component fields are undefined when no ward-level data exists —
+          // the demo text below reads them via optional chaining.
           green_space_pct: vulnerability.green_space_pct,
           building_density: vulnerability.building_density,
           outdoor_worker_density: vulnerability.outdoor_worker_density,
           is_estimated_baseline: vulnerability.is_estimated_baseline,
           data_source: vulnerability.data_source,
+          provenance: {
+            status: vulnerability.provenance.status,
+            source: vulnerability.provenance.source,
+            geography: vulnerability.provenance.geography,
+            methodology: vulnerability.provenance.methodology,
+          },
           ...(census ? {
             census: {
               population: census.total_population,
@@ -213,7 +229,7 @@ export async function GET(request: NextRequest) {
         composite_risk: {
           score: assessment.composite_risk_score,
           level: assessment.composite_risk_level,
-          thermal_score: Math.round((thermal.heat_index - 20) / 0.34 * 10) / 10,
+          thermal_score: calculateThermalScore(thermal.heat_index),
           contributing_factors: assessment.contributing_factors,
         },
         advisory: {
@@ -240,8 +256,16 @@ export async function GET(request: NextRequest) {
       demonstration: {
         title: 'Why Vulnerability-Weighted Heat Risk Matters',
         explanation: `Both wards experience the identical temperature of ${lowVulnerabilityWard.thermal.temperature}°C from the same NWP forecast grid, yet their risk levels differ significantly because thermal stress interacts with ward-level vulnerability factors.`,
-        key_insight: `Ward A (${lowVulnerabilityWard.ward_name}) has ${lowVulnerabilityWard.vulnerability.green_space_pct}% green space and a vulnerability score of ${lowVulnerabilityWard.vulnerability.score}/100, yielding ${lowVulnerabilityWard.composite_risk.level} risk. ` +
-          `Ward B (${highVulnerabilityWard.ward_name}) has ${highVulnerabilityWard.vulnerability.green_space_pct}% green space and a vulnerability score of ${highVulnerabilityWard.vulnerability.score}/100, yielding ${highVulnerabilityWard.composite_risk.level} risk.`,
+        key_insight: `Ward A (${lowVulnerabilityWard.ward_name}) has ${
+          lowVulnerabilityWard.vulnerability.green_space_pct !== undefined
+            ? `${lowVulnerabilityWard.vulnerability.green_space_pct}% green space`
+            : 'no ward-level green-space data'
+        } and a vulnerability score of ${lowVulnerabilityWard.vulnerability.score}/100, yielding ${lowVulnerabilityWard.composite_risk.level} risk. ` +
+          `Ward B (${highVulnerabilityWard.ward_name}) has ${
+          highVulnerabilityWard.vulnerability.green_space_pct !== undefined
+            ? `${highVulnerabilityWard.vulnerability.green_space_pct}% green space`
+            : 'no ward-level green-space data'
+        } and a vulnerability score of ${highVulnerabilityWard.vulnerability.score}/100, yielding ${highVulnerabilityWard.composite_risk.level} risk.`,
       },
       low_vulnerability_ward: lowVulnerabilityWard,
       high_vulnerability_ward: highVulnerabilityWard,
@@ -250,7 +274,7 @@ export async function GET(request: NextRequest) {
         heat_index_difference: Math.abs(lowVulnerabilityWard.thermal.heat_index - highVulnerabilityWard.thermal.heat_index),
         vulnerability_score_gap: Math.abs(lowVulnerabilityWard.vulnerability.score - highVulnerabilityWard.vulnerability.score),
         composite_risk_gap: Math.abs(lowVulnerabilityWard.composite_risk.score - highVulnerabilityWard.composite_risk.score),
-        green_space_gap: Math.abs(lowVulnerabilityWard.vulnerability.green_space_pct - highVulnerabilityWard.vulnerability.green_space_pct),
+        green_space_gap: Math.abs((lowVulnerabilityWard.vulnerability.green_space_pct ?? 0) - (highVulnerabilityWard.vulnerability.green_space_pct ?? 0)),
         same_advisory_grade: lowVulnerabilityWard.advisory.grade === highVulnerabilityWard.advisory.grade,
       },
       attribution: 'HeatPulse Twin Ward Comparison — Demonstrating Vulnerability-Weighted Risk Assessment',

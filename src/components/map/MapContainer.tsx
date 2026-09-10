@@ -58,6 +58,10 @@ import {
   type StateThermalMetric,
 } from './map-config';
 import {
+  classifyHeatCondition,
+  classifyThermalStress,
+} from '@/lib/threshold-config';
+import {
   createBhuvanBasemapController,
   getBhuvanLayerForScope,
   type BasemapMode,
@@ -320,7 +324,10 @@ export default function MapContainer({
       }),
     });
   }, []);
-  getDynamicWardStyleRef.current = getDynamicWardStyle;
+
+  useEffect(() => {
+    getDynamicWardStyleRef.current = getDynamicWardStyle;
+  }, [getDynamicWardStyle]);
 
   // Handle layer switch
   const handleLayerChange = useCallback(
@@ -540,7 +547,7 @@ export default function MapContainer({
               metricValue = t !== undefined ? `${t}°C` : '--';
               let cond = metric.heatCondition;
               if (!cond && t !== undefined) {
-                cond = t >= 54 ? 'Extreme' : t >= 41 ? 'High' : t >= 32 ? 'Elevated' : 'Normal';
+                cond = classifyHeatCondition(t); // threshold-config single source
               }
               category = cond || 'Normal';
               if (category === 'Extreme') {
@@ -558,7 +565,7 @@ export default function MapContainer({
               metricValue = wbgt !== undefined ? `${wbgt}°C` : '--';
               let stress = metric.thermalStress;
               if (!stress && wbgt !== undefined) {
-                stress = wbgt >= 32 ? 'Severe' : wbgt >= 30 ? 'High' : wbgt >= 28 ? 'Moderate' : 'Low';
+                stress = classifyThermalStress(undefined, wbgt); // threshold-config single source
               }
               category = stress || 'Low';
               if (category === 'Severe') {
@@ -975,12 +982,12 @@ export default function MapContainer({
         </div>
       )}
 
-      {/* Loading Overlay */}
+      {/* Loading Overlay — generic wording; basemap status shown separately */}
       {!mapReady && (
         <div className="absolute inset-0 bg-zinc-100/90 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="text-zinc-600 text-sm flex flex-col items-center gap-3">
             <div className="w-8 h-8 border-3 border-orange-500 border-t-transparent rounded-full animate-spin" />
-            <span className="font-medium">Initializing ISRO Bhuvan Basemap…</span>
+            <span className="font-medium">Loading map…</span>
           </div>
         </div>
       )}

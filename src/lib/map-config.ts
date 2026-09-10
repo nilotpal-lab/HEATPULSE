@@ -36,6 +36,11 @@ import ScaleLine from 'ol/control/ScaleLine';
 import type { Extent } from 'ol/extent';
 import { CITIES, CityId, CITY_LIST } from '@/types/gis';
 import {
+  classifyHeatCondition,
+  classifyThermalStress,
+  calculateRelativeRisk,
+} from '@/lib/threshold-config';
+import {
   createBhuvanBasemapController,
   createBhuvanLayer,
   createOsmFallbackLayer,
@@ -133,12 +138,12 @@ export type { BhuvanBasemapController, BasemapStatus };
  * Color scales for thematic layers (Requirement R2 / PROJECT.md § Visual Contrast)
  */
 export const THEMATIC_COLORS = {
-  // 1. Heat Conditions (Atmospheric state)
+  // 1. Heat Conditions (Atmospheric state) — thresholds per threshold-config
   heat_conditions: {
-    Normal: { fill: 'rgba(59, 130, 246, 0.45)', stroke: '#2563eb', label: 'Normal (<32°C)' },
-    Elevated: { fill: 'rgba(234, 179, 8, 0.45)', stroke: '#ca8a04', label: 'Elevated (32–40°C)' },
-    High: { fill: 'rgba(249, 115, 22, 0.48)', stroke: '#ea580c', label: 'High (41–53°C)' },
-    Extreme: { fill: 'rgba(220, 38, 38, 0.52)', stroke: '#b91c1c', label: 'Extreme (≥54°C)' },
+    Normal: { fill: 'rgba(59, 130, 246, 0.45)', stroke: '#2563eb', label: 'Normal (<35°C)' },
+    Elevated: { fill: 'rgba(234, 179, 8, 0.45)', stroke: '#ca8a04', label: 'Elevated (35–40°C)' },
+    High: { fill: 'rgba(249, 115, 22, 0.48)', stroke: '#ea580c', label: 'High (40–45°C)' },
+    Extreme: { fill: 'rgba(220, 38, 38, 0.52)', stroke: '#b91c1c', label: 'Extreme (≥45°C)' },
   },
   // 2. Thermal Stress (Human biometeorology)
   thermal_stress: {
@@ -147,13 +152,14 @@ export const THEMATIC_COLORS = {
     High: { fill: 'rgba(234, 88, 12, 0.48)', stroke: '#c2410c', label: 'High (30–32°C WBGT)' },
     Severe: { fill: 'rgba(153, 27, 27, 0.55)', stroke: '#7f1d1d', label: 'Severe (>32°C WBGT)' },
   },
-  // 3. Composite Risk / Legacy risk levels
+  // 3. Composite Risk — keyed to the four engine levels (Low/Moderate/High/Severe).
+// 'extreme'/'danger' legacy keys never matched engine output and miscolored
+// highscores as green; kept 'severe' to reflect the authoritative level.
   composite_risk: {
     low: { fill: 'rgba(34, 197, 94, 0.40)', stroke: '#16a34a', label: 'Low Risk' },
     moderate: { fill: 'rgba(59, 130, 246, 0.40)', stroke: '#2563eb', label: 'Moderate Risk' },
     high: { fill: 'rgba(245, 158, 11, 0.45)', stroke: '#d97706', label: 'High Risk' },
-    extreme: { fill: 'rgba(234, 88, 12, 0.50)', stroke: '#ea580c', label: 'Extreme Risk' },
-    danger: { fill: 'rgba(220, 38, 38, 0.55)', stroke: '#dc2626', label: 'Critical Risk' },
+    severe: { fill: 'rgba(220, 38, 38, 0.55)', stroke: '#dc2626', label: 'Severe Risk' },
   },
   // 4. Epidemiological Health Burden & Hospital Surge Index (Lancet/HAP Relative Risk Model)
   health_impact: {
@@ -177,14 +183,10 @@ export function getWardThematicColor(
   }
 
   if (activeLayer === 'heat_conditions') {
+    // Classification delegated to threshold-config — no duplicate numerics here.
     let cond = wardRisk.heatCondition || wardRisk.heat_condition;
-    if (!cond) {
-      const t = wardRisk.currentTemp ?? 0;
-      const hi = wardRisk.heatIndex ?? t;
-      if (t >= 54 || hi >= 54) cond = 'Extreme';
-      else if (t >= 41 || hi >= 41) cond = 'High';
-      else if (t >= 32 || hi >= 32) cond = 'Elevated';
-      else cond = 'Normal';
+    if (!cond && wardRisk.currentTemp != null) {
+      cond = classifyHeatCondition(wardRisk.currentTemp);
     }
     const validKey = (THEMATIC_COLORS.heat_conditions[cond as keyof typeof THEMATIC_COLORS.heat_conditions]
       ? cond
@@ -195,13 +197,8 @@ export function getWardThematicColor(
 
   if (activeLayer === 'thermal_stress') {
     let stress = wardRisk.thermalStress || wardRisk.thermal_stress;
-    if (!stress) {
-      const wbgt = wardRisk.wbgt ?? 0;
-      const hi = wardRisk.heatIndex ?? 0;
-      if (wbgt >= 32 || hi >= 41) stress = 'Severe';
-      else if (wbgt >= 30 || hi >= 32) stress = 'High';
-      else if (wbgt >= 28 || hi >= 27) stress = 'Moderate';
-      else stress = 'Low';
+    if (!stress && (wardRisk.wbgt != null || wardRisk.heatIndex != null)) {
+      stress = classifyThermalStress(wardRisk.heatIndex ?? 0, wardRisk.wbgt);
     }
     const validKey = (THEMATIC_COLORS.thermal_stress[stress as keyof typeof THEMATIC_COLORS.thermal_stress]
       ? stress
@@ -211,25 +208,19 @@ export function getWardThematicColor(
   }
 
   if (activeLayer === 'health_impact') {
-    // Relative Risk calculation based on WBGT + Vulnerability baseline
-    const wbgt = wardRisk.wbgt ?? 28;
-    const vuln = wardRisk.vulnerabilityScore ?? 50;
-    
-    // Relative Risk (RR): 1.0 base + excess WBGT factor + vulnerability multiplier
-    const excessWbgt = Math.max(0, wbgt - 27.0);
-    const rr = 1.0 + (excessWbgt * 0.12) + ((vuln / 100) * 0.15);
-    
-    let burdenLevel: 'Baseline' | 'Elevated' | 'High' | 'Critical' = 'Baseline';
-    if (rr >= 1.50 || wbgt >= 32) burdenLevel = 'Critical';
-    else if (rr >= 1.30 || wbgt >= 30) burdenLevel = 'High';
-    else if (rr >= 1.15 || wbgt >= 28) burdenLevel = 'Elevated';
-    
-    const c = THEMATIC_COLORS.health_impact[burdenLevel];
+    // RR math delegated to threshold-config (onset WBGT 28.0). No fabricated
+    // wbgt=28 / vuln=50 defaults: missing inputs resolve to baseline instead.
+    const w = typeof wardRisk.wbgt === 'number' ? wardRisk.wbgt : undefined;
+    const vuln = typeof wardRisk.vulnerabilityScore === 'number' ? wardRisk.vulnerabilityScore : undefined;
+    const { band } = calculateRelativeRisk(w, vuln);
+    const c = THEMATIC_COLORS.health_impact[band];
     return { fill: c.fill, stroke: c.stroke };
   }
 
-  // Composite risk mode
-  const rawRisk = String(wardRisk.compositeRiskLevel || wardRisk.composite_risk_level || 'low').toLowerCase();
+  // Composite risk mode — composite_risk keyed to the four engine levels.
+  const rawRisk = String(
+    (wardRisk.compositeRiskLevel || wardRisk.composite_risk_level || 'low').toLowerCase()
+  );
   const c =
     THEMATIC_COLORS.composite_risk[rawRisk as keyof typeof THEMATIC_COLORS.composite_risk] ||
     THEMATIC_COLORS.composite_risk.low;

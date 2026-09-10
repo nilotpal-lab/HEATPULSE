@@ -29,6 +29,13 @@ import {
   classifyThermalStress,
 } from './threshold-config';
 
+// Single authoritative re-export for consumers; implementations live in
+// threshold-config.ts (never duplicated here).
+export {
+  classifyHeatCondition,
+  classifyThermalStress,
+} from './threshold-config';
+
 /**
  * Calculates NOAA Rothfusz Heat Index (°C) with mandatory NWS humidity adjustments.
  * References:
@@ -111,19 +118,9 @@ export function approximateUTCI(
 }
 
 /**
- * Classifies physical atmospheric Heat Conditions based on 2m dry-bulb air temperature.
- * Thresholds live in threshold-config.ts (single source of truth).
- */
-export { classifyHeatCondition };
-
-/**
- * Classifies human biometeorological Thermal Stress based on NOAA Heat Index and BoM WBGT.
- * Thresholds live in threshold-config.ts (single source of truth).
- */
-export { classifyThermalStress };
-
-/**
- * Legacy risk level classification mapping for backward compatibility with existing UI components
+ * Legacy risk level classification mapping for backward compatibility with existing UI components.
+ * NOTE: classifyHeatCondition and classifyThermalStress are NOT defined here —
+ * they are imported and re-exported from threshold-config.ts at the top of this file.
  */
 export function classifyRisk(heatIndex: number): {
   level: RiskLevel;

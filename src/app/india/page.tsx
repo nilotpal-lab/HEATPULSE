@@ -8,7 +8,7 @@
  * 1. National-scale thermal overview (LOD 0: no ward polygon clutter, city marker pins)
  * 2. 6 Monitored City Summary Cards (Bengaluru 369, Pune 15, Mumbai 24, Kolkata 141, Chennai 200, Coimbatore 100)
  * 3. Live atmospheric metrics per city (Dry-bulb, Heat Index, WBGT, UTCI Proxy)
- * 4. IMD Official District Alert status color codes
+ * 4. District Heat Evaluation status color codes (HeatPulse local IMD-criteria eval)
  * 5. One-click navigation to City Overview
  */
 
@@ -20,9 +20,13 @@ import {
   Building,
   ArrowRight,
 } from 'lucide-react';
-import { CITY_LIST, CityId, CITIES } from '@/types/gis';
+import { CITY_LIST, type CityId } from '@/types/gis';
 import { useHeatPulseStore, heatPulseActions } from '@/lib/store';
-import { evaluateImdDistrictWarning, ImdDistrictWarning } from '@/lib/imd-service';
+import { evaluateImdDistrictWarning, type ImdDistrictWarning } from '@/lib/imd-service';
+import {
+  classifyHeatCondition,
+  classifyThermalStress,
+} from '@/lib/threshold-config';
 import FreshnessBanner from '@/components/navigation/FreshnessBanner';
 import MapContainer from '@/components/map/MapContainer';
 import type { StateThermalMetric } from '@/lib/map-config';
@@ -33,14 +37,15 @@ interface CityCardMetrics {
   name: string;
   state: string;
   wardCount: number;
-  temperature: number;
-  humidity: number;
-  heatIndex: number;
-  wbgt: number;
-  utciProxy: number;
-  riskLevel: 'Low' | 'Moderate' | 'High' | 'Severe';
+  /** Presence means a genuine city value; null = unavailable (never a fabricated peak). */
+  temperature: number | null;
+  humidity: number | null;
+  heatIndex: number | null;
+  wbgt: number | null;
+  utciProxy: number | null;
+  riskLevel: 'Low' | 'Moderate' | 'High' | 'Severe' | null;
   imdWarning: ImdDistrictWarning;
-  status: 'fresh' | 'stale' | 'loading';
+  status: 'fresh' | 'stale' | 'loading' | 'unavailable';
 }
 
 export default function IndiaOverviewPage() {
@@ -70,18 +75,24 @@ export default function IndiaOverviewPage() {
           const legacyWards = data.wards || [];
           const assessments = data.assessments || [];
 
-          // Derive city-wide peak thermal metrics
-          let peakTemp = 34.0;
-          let peakHI = 37.0;
-          let peakWbgt = 28.5;
-          let maxRiskLevel: 'Low' | 'Moderate' | 'High' | 'Severe' = 'Moderate';
+          // Derive city-wide peak thermal metrics — genuine values only. When a city
+          // has no ward telemetry the fields are null (rendered as '--'), never
+          // a fabricated 34.0/37.0/28.5 placeholder.
+          const validTemps = (legacyWards as Array<{ currentTemp?: number }>)
+            .map((w) => w.currentTemp).filter((v): v is number => typeof v === 'number' && Number.isFinite(v));
+          const validHis = (legacyWards as Array<{ heatIndex?: number }>)
+            .map((w) => w.heatIndex).filter((v): v is number => typeof v === 'number' && Number.isFinite(v));
+          const validWbgts = (legacyWards as Array<{ wbgt?: number }>)
+            .map((w) => w.wbgt).filter((v): v is number => typeof v === 'number' && Number.isFinite(v));
+          const validUtci = (assessments as Array<{ thermal?: { utci_proxy?: number } }>)
+            .map((a) => a.thermal?.utci_proxy).filter((v): v is number => typeof v === 'number' && Number.isFinite(v));
 
-          if (legacyWards.length > 0) {
-            peakTemp = Math.max(...legacyWards.map((w: { currentTemp: number }) => w.currentTemp || 0));
-            peakHI = Math.max(...legacyWards.map((w: { heatIndex: number }) => w.heatIndex || 0));
-            peakWbgt = Math.max(...legacyWards.map((w: { wbgt: number }) => w.wbgt || 0));
-          }
+          const peakTemp = validTemps.length > 0 ? Math.max(...validTemps) : null;
+          const peakHI = validHis.length > 0 ? Math.max(...validHis) : null;
+          const peakWbgt = validWbgts.length > 0 ? Math.max(...validWbgts) : null;
+          const peakUtci = validUtci.length > 0 ? Math.max(...validUtci) : null;
 
+          let maxRiskLevel: 'Low' | 'Moderate' | 'High' | 'Severe' | null = null;
           if (assessments.length > 0) {
             const hasSevere = assessments.some(
               (a: { composite_risk_level: string }) => a.composite_risk_level === 'Severe'
@@ -89,42 +100,45 @@ export default function IndiaOverviewPage() {
             const hasHigh = assessments.some(
               (a: { composite_risk_level: string }) => a.composite_risk_level === 'High'
             );
-            maxRiskLevel = hasSevere ? 'Severe' : hasHigh ? 'High' : 'Moderate';
+            const hasModerate = assessments.some(
+              (a: { composite_risk_level: string }) => a.composite_risk_level === 'Moderate'
+            );
+            maxRiskLevel = hasSevere ? 'Severe' : hasHigh ? 'High' : hasModerate ? 'Moderate' : 'Low';
           }
 
-          const imdWarning = evaluateImdDistrictWarning(city.id, peakTemp);
+          // IMD evaluation uses the real peak temperature when available.
+          const imdWarning = evaluateImdDistrictWarning(city.id, peakTemp ?? 35);
 
           return {
             cityId: city.id,
             name: city.name,
             state: city.state,
             wardCount: city.wardCount,
-            temperature: Math.round(peakTemp * 10) / 10,
-            humidity: 55,
-            heatIndex: Math.round(peakHI * 10) / 10,
-            wbgt: Math.round(peakWbgt * 10) / 10,
-            utciProxy: Math.round((peakHI + 0.5) * 10) / 10,
+            temperature: peakTemp != null ? Math.round(peakTemp * 10) / 10 : null,
+            humidity: null,
+            heatIndex: peakHI != null ? Math.round(peakHI * 10) / 10 : null,
+            wbgt: peakWbgt != null ? Math.round(peakWbgt * 10) / 10 : null,
+            utciProxy: peakUtci != null ? Math.round(peakUtci * 10) / 10 : null,
             riskLevel: maxRiskLevel,
             imdWarning,
-            status: 'fresh' as const,
+            status: legacyWards.length > 0 ? ('fresh' as const) : ('unavailable' as const),
           };
         } catch {
-          // Graceful fallback with normal baseline
-          const normalTmax = CITIES[city.id]?.defaultZoom ? 35 : 34;
-          const imd = evaluateImdDistrictWarning(city.id, normalTmax);
+          // No fabricated fallback numbers: mark the city unavailable.
+          const imd = evaluateImdDistrictWarning(city.id, 35);
           return {
             cityId: city.id,
             name: city.name,
             state: city.state,
             wardCount: city.wardCount,
-            temperature: normalTmax,
-            humidity: 50,
-            heatIndex: normalTmax + 3,
-            wbgt: 27.5,
-            utciProxy: normalTmax + 3.5,
-            riskLevel: 'Moderate' as const,
+            temperature: null,
+            humidity: null,
+            heatIndex: null,
+            wbgt: null,
+            utciProxy: null,
+            riskLevel: null,
             imdWarning: imd,
-            status: 'stale' as const,
+            status: 'unavailable' as const,
           };
         }
       });
@@ -195,19 +209,22 @@ export default function IndiaOverviewPage() {
     // 2. Override with city ward data (peak aggregated, more granular)
     cityMetrics.forEach((c) => {
       cTelem[c.cityId] = {
-        temp: c.temperature,
-        heatIndex: c.heatIndex,
-        wbgt: c.wbgt,
-        risk: c.riskLevel,
+        temp: c.temperature ?? undefined,
+        heatIndex: c.heatIndex ?? undefined,
+        wbgt: c.wbgt ?? undefined,
+        risk: c.riskLevel ?? undefined,
       };
 
       // Map city metrics to their respective states with multi-city peak aggregation
       const stateKey = c.state.toLowerCase();
       const existing = sMetrics[stateKey];
 
-      const maxTemp = existing?.temperature !== undefined ? Math.max(existing.temperature, c.temperature) : c.temperature;
-      const maxHI = existing?.heatIndex !== undefined ? Math.max(existing.heatIndex, c.heatIndex) : c.heatIndex;
-      const maxWbgt = existing?.wbgt !== undefined ? Math.max(existing.wbgt, c.wbgt) : c.wbgt;
+      const tempArr = [existing?.temperature, c.temperature].filter((v): v is number => v != null && Number.isFinite(v));
+      const hiArr = [existing?.heatIndex, c.heatIndex].filter((v): v is number => v != null && Number.isFinite(v));
+      const wbgtArr = [existing?.wbgt, c.wbgt].filter((v): v is number => v != null && Number.isFinite(v));
+      const maxTemp = tempArr.length > 0 ? Math.max(...tempArr) : undefined;
+      const maxHI = hiArr.length > 0 ? Math.max(...hiArr) : undefined;
+      const maxWbgt = wbgtArr.length > 0 ? Math.max(...wbgtArr) : undefined;
 
       const prevCities = existing?.monitoredCities || [];
       const updatedCities = prevCities.includes(c.name) ? prevCities : [...prevCities, c.name];
@@ -215,12 +232,12 @@ export default function IndiaOverviewPage() {
       sMetrics[stateKey] = {
         stateName: c.state,
         capital: existing?.capital,
-        temperature: Math.round(maxTemp * 10) / 10,
-        humidity: c.humidity,
-        heatIndex: Math.round(maxHI * 10) / 10,
-        wbgt: Math.round(maxWbgt * 10) / 10,
-        heatCondition: maxTemp >= 54 ? 'Extreme' : maxTemp >= 41 ? 'High' : maxTemp >= 32 ? 'Elevated' : 'Normal',
-        thermalStress: maxWbgt >= 32 ? 'Severe' : maxWbgt >= 30 ? 'High' : maxWbgt >= 28 ? 'Moderate' : 'Low',
+        temperature: maxTemp != null ? Math.round(maxTemp * 10) / 10 : undefined,
+        humidity: c.humidity ?? undefined,
+        heatIndex: maxHI != null ? Math.round(maxHI * 10) / 10 : undefined,
+        wbgt: maxWbgt != null ? Math.round(maxWbgt * 10) / 10 : undefined,
+        heatCondition: maxTemp != null ? classifyHeatCondition(maxTemp) : undefined,
+        thermalStress: maxWbgt != null ? classifyThermalStress(undefined, maxWbgt) : undefined,
         source: 'metro_ward_peak',
         monitoredCities: updatedCities,
       };
@@ -235,7 +252,8 @@ export default function IndiaOverviewPage() {
     router.push('/');
   };
 
-  const highestTemp = cityMetrics.length > 0 ? Math.max(...cityMetrics.map((c) => c.temperature)) : 0;
+  const cityTemps = cityMetrics.map((c) => c.temperature).filter((v): v is number => v != null && Number.isFinite(v));
+  const highestTemp = cityTemps.length > 0 ? Math.max(...cityTemps) : null;
   const imdAlertsCount = cityMetrics.filter(
     (c) => c.imdWarning.color_code === 'ORANGE' || c.imdWarning.color_code === 'RED'
   ).length;
@@ -293,7 +311,7 @@ export default function IndiaOverviewPage() {
                 National Peak Temp
               </span>
               <div className="text-2xl font-extrabold text-orange-600 mt-0.5">
-                {highestTemp > 0 ? `${highestTemp}°C` : '--°C'}
+                {highestTemp != null ? `${highestTemp}°C` : '--°C'}
               </div>
               <div className="text-[10px] text-zinc-500 mt-0.5">Across monitored municipal centroids</div>
             </div>
@@ -309,7 +327,7 @@ export default function IndiaOverviewPage() {
                   <span className="text-emerald-600">All Normal</span>
                 )}
               </div>
-              <div className="text-[10px] text-zinc-500 mt-0.5">Official MoES / IMD District bulletins</div>
+              <div className="text-[10px] text-zinc-500 mt-0.5">IMD Criteria Assessment (computed locally; not an official bulletin)</div>
             </div>
           </div>
         </div>
@@ -411,7 +429,7 @@ export default function IndiaOverviewPage() {
                       }`}
                       title={metrics?.imdWarning.headline}
                     >
-                      IMD: {imdColor}
+                      IMD Criteria: {imdColor}
                     </div>
                   </div>
 
@@ -442,7 +460,7 @@ export default function IndiaOverviewPage() {
                   {/* Footer Bar */}
                   <div className="mt-3 flex items-center justify-between text-xs text-zinc-500">
                     <span className="text-[11px]">
-                      Apparent Temp: <strong className="text-zinc-700">{metrics?.utciProxy}°C</strong> (UTCI Proxy)
+                      Apparent Temp: <strong className="text-zinc-700">{metrics?.utciProxy != null ? `${metrics.utciProxy}°C` : '--'}</strong> (UTCI Proxy)
                     </span>
                     <span className="flex items-center gap-1 text-orange-600 font-semibold group-hover:translate-x-0.5 transition-transform text-[11px]">
                       <span>Open City</span>

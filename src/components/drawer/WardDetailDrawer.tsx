@@ -38,6 +38,13 @@ import { useHeatPulseStore, heatPulseActions } from '@/lib/store';
 import { CITIES } from '@/types/gis';
 import { formatToIST, formatDateIST } from '@/components/navigation/FreshnessBanner';
 import { calculateHeatIndex, calculateWBGT } from '@/lib/thermal-engine';
+import {
+  classifyHeatCondition,
+  classifyThermalStress,
+  classifyVulnerabilityLevel,
+  calculateRelativeRisk,
+  RELATIVE_RISK_THRESHOLDS,
+} from '@/lib/threshold-config';
 
 export default function WardDetailDrawer() {
   const isOpen = useHeatPulseStore((s) => s.isDrawerOpen);
@@ -192,32 +199,17 @@ export default function WardDetailDrawer() {
       ? Math.round(assessment.thermal.utci_proxy * 10) / 10
       : weatherForecast?.current?.apparent_temperature != null
       ? Math.round(weatherForecast.current.apparent_temperature * 10) / 10
-      : heatIndex != null
-      ? Math.round((heatIndex + 0.5) * 10) / 10
       : null;
 
+  // Classification derived exclusively from threshold-config (single source of truth).
   const heatCondition: 'Normal' | 'Elevated' | 'High' | 'Extreme' =
     assessment?.thermal?.heat_condition ||
-    (currentTemp != null
-      ? currentTemp >= 42
-        ? 'Extreme'
-        : currentTemp >= 38
-        ? 'High'
-        : currentTemp >= 34
-        ? 'Elevated'
-        : 'Normal'
-      : 'Normal');
+    (currentTemp != null ? classifyHeatCondition(currentTemp) : 'Normal');
 
   const thermalStress: 'Low' | 'Moderate' | 'High' | 'Severe' =
     assessment?.thermal?.thermal_stress ||
-    (wbgt != null
-      ? wbgt >= 32
-        ? 'Severe'
-        : wbgt >= 29
-        ? 'High'
-        : wbgt >= 26
-        ? 'Moderate'
-        : 'Low'
+    (heatIndex != null || wbgt != null
+      ? classifyThermalStress(heatIndex ?? 0, wbgt ?? undefined)
       : 'Low');
 
   // SECTION 3: Forecast Peak Period (Derived from genuine 120-hour NWP trajectory)
@@ -266,18 +258,8 @@ export default function WardDetailDrawer() {
       };
     }
 
-    if (wbgt != null) {
-      return {
-        hasData: true,
-        peakWbgt: Math.round((wbgt + 1.2) * 10) / 10,
-        peakHeatIndex: heatIndex != null ? Math.round((heatIndex + 1.8) * 10) / 10 : null,
-        peakTemp: currentTemp != null ? Math.round((currentTemp + 1.5) * 10) / 10 : null,
-        date: 'Forward 24–48h',
-        window: '13:00 – 16:00 IST',
-        hoursAbove30: wbgt >= 29 ? 3 : 0,
-      };
-    }
-
+    // No synthetic peak injection: without a 120h NWP trajectory the peak is
+    // simply unavailable (never current + fabricated offset).
     return {
       hasData: false,
       peakWbgt: null,
@@ -287,44 +269,60 @@ export default function WardDetailDrawer() {
       window: 'Awaiting NWP Grid',
       hoursAbove30: 0,
     };
-  }, [weatherForecast, wbgt, heatIndex, currentTemp]);
+  }, [weatherForecast]);
 
   // SECTION 5 & 6: Vulnerability & Composite Risk
+  //
+  // Data-honesty rules from PROJECT.md: never fabricate ward differences.
+  // - Score and component fields are present ONLY when real ward-level data
+  //   exists (provenance not 'Unavailable'). Otherwise they are null and the
+  //   UI renders a clear "unavailable" state — never a made-up number.
+  const vulnerabilityProvenance =
+    assessment?.vulnerability_provenance ||
+    (legacyRisk?.vulnerability_provenance as
+      | { status: string; source?: string }
+      | undefined) ||
+    null;
+
+  const vulnerabilityAvailable =
+    vulnerabilityProvenance !== null &&
+    vulnerabilityProvenance.status !== 'Unavailable';
+
   const vulnerabilityScore =
     assessment?.vulnerability_score ??
     legacyRisk?.vulnerabilityScore ??
-    (wardFeature?.properties.vulnerability_score as number) ??
-    50;
+    (vulnerabilityAvailable
+      ? (wardFeature?.properties.vulnerability_score as number)
+      : null) ??
+    null;
 
   const vulnerabilityLevel =
     assessment?.vulnerability_level ||
-    (vulnerabilityScore >= 70
-      ? 'Severe'
-      : vulnerabilityScore >= 55
-      ? 'High'
-      : vulnerabilityScore >= 40
-      ? 'Moderate'
-      : 'Low');
+    (vulnerabilityScore != null ? classifyVulnerabilityLevel(vulnerabilityScore) : 'Low');
 
-  const greenCover =
+  const greenCover: number | null =
     legacyRisk?.vulnerabilityGreenPct ??
     (wardFeature?.properties.green_space_pct as number) ??
-    10;
+    null;
 
-  const buildingDensity =
+  const buildingDensity: number | null =
     legacyRisk?.vulnerabilityBuildingDensity ??
     (wardFeature?.properties.building_density as number) ??
-    0.78;
+    null;
 
-  const workerDensity =
+  const workerDensity: number | null =
     legacyRisk?.vulnerabilityWorkerDensity ??
     (wardFeature?.properties.outdoor_worker_density as number) ??
-    0.62;
+    null;
 
-  const elderlyPct =
+  const elderlyPct: number | null =
     (legacyRisk as { elderlyPopulationPct?: number })?.elderlyPopulationPct ??
     (wardFeature?.properties.elderly_pct as number) ??
-    8.4;
+    null;
+
+  // A ward feature may carry GeoJSON attributes even when the assessment is
+  // unavailable — those are only surfaced when provenance confirms real data.
+  const componentDataAvailable = vulnerabilityAvailable;
 
   const compositeRiskScore =
     assessment?.composite_risk_score ?? legacyRisk?.compositeRisk ?? null;
@@ -342,23 +340,22 @@ export default function WardDetailDrawer() {
       : 'Low');
 
   // SECTION 7: Health Burden / Relative Risk (RR) Formulation
-  // Formulation: RR = 1.0 + max(0, wbgt - 28.0) * 0.12 + (vulnerability / 100) * 0.15
+  // Single authoritative RR math lives in threshold-config.calculateRelativeRisk.
   const healthRelativeRisk = useMemo(() => {
-    const effectiveWbgt = wbgt ?? (peakPeriodInfo.peakWbgt != null ? peakPeriodInfo.peakWbgt - 1.0 : null);
+    const effectiveWbgt = wbgt ?? null;
     if (effectiveWbgt == null) return null;
 
-    const excessWbgt = Math.max(0, effectiveWbgt - 28.0);
-    const vulnFactor = (vulnerabilityScore / 100) * 0.15;
-    const rr = 1.0 + excessWbgt * 0.12 + vulnFactor;
-    const excessPct = Math.round((rr - 1.0) * 100);
-
+    const est = calculateRelativeRisk(
+      effectiveWbgt,
+      componentDataAvailable && vulnerabilityScore != null ? vulnerabilityScore : undefined
+    );
     return {
-      rr: Math.round(rr * 100) / 100,
-      excessPct,
-      thresholdExceeded: effectiveWbgt > 28.0,
+      rr: est.rr,
+      excessPct: est.excessPct,
+      thresholdExceeded: effectiveWbgt > RELATIVE_RISK_THRESHOLDS.onsetWbgt,
       baseWbgt: effectiveWbgt,
     };
-  }, [wbgt, peakPeriodInfo.peakWbgt, vulnerabilityScore]);
+  }, [wbgt, componentDataAvailable, vulnerabilityScore]);
 
   // Temporal Labels
   const metadata =
@@ -440,7 +437,7 @@ export default function WardDetailDrawer() {
               <div className="bg-white p-2 rounded-lg border border-zinc-200/60">
                 <span className="text-[10px] text-zinc-400 block">Baseline Population</span>
                 <span className="font-semibold text-zinc-800">
-                  {population ? population.toLocaleString('en-IN') : 'Census Baseline (~42,000)'}
+                  {population ? population.toLocaleString('en-IN') : 'Not available'}
                 </span>
               </div>
               <div className="bg-white p-2 rounded-lg border border-zinc-200/60">
@@ -616,48 +613,82 @@ export default function WardDetailDrawer() {
                 <Users className="w-3.5 h-3.5 text-indigo-500" />
                 <span>Section 5 · Socio-Ecological Vulnerability</span>
               </span>
-              <span className="text-[10px] font-semibold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200">
-                Census 2011 Baseline
+              <span className={`text-[10px] font-semibold ${
+                vulnerabilityAvailable
+                  ? 'text-indigo-700 bg-indigo-50 border-indigo-200'
+                  : 'text-zinc-500 bg-zinc-100 border-zinc-200'
+              } px-1.5 py-0.5 rounded border`}>
+                {vulnerabilityAvailable
+                  ? (vulnerabilityProvenance?.status === 'Proxy' ? 'Density Proxy' : 'Census 2011 Baseline')
+                  : 'Unavailable'}
               </span>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 text-[11px]">
-              <div className="bg-white p-2 rounded-lg border border-zinc-200/60 flex items-center gap-2">
-                <Trees className="w-4 h-4 text-emerald-600 shrink-0" />
-                <div>
-                  <span className="text-[10px] text-zinc-400 block">Green Space Cover</span>
-                  <span className="font-semibold text-zinc-900">{greenCover}%</span>
-                </div>
-              </div>
-              <div className="bg-white p-2 rounded-lg border border-zinc-200/60 flex items-center gap-2">
-                <Building2 className="w-4 h-4 text-zinc-600 shrink-0" />
-                <div>
-                  <span className="text-[10px] text-zinc-400 block">Building Density</span>
-                  <span className="font-semibold text-zinc-900">{Math.round(buildingDensity * 100)}%</span>
-                </div>
-              </div>
-              <div className="bg-white p-2 rounded-lg border border-zinc-200/60 flex items-center gap-2">
-                <HardHat className="w-4 h-4 text-amber-600 shrink-0" />
-                <div>
-                  <span className="text-[10px] text-zinc-400 block">Outdoor Workers</span>
-                  <span className="font-semibold text-zinc-900">{Math.round(workerDensity * 100)}%</span>
-                </div>
-              </div>
-              <div className="bg-white p-2 rounded-lg border border-zinc-200/60 flex items-center gap-2">
-                <Users className="w-4 h-4 text-indigo-600 shrink-0" />
-                <div>
-                  <span className="text-[10px] text-zinc-400 block">Older Cohort (65+)</span>
-                  <span className="font-semibold text-zinc-900">{elderlyPct}%</span>
-                </div>
-              </div>
-            </div>
+            {vulnerabilityAvailable ? (
+              <>
+                {componentDataAvailable ? (
+                  <div className="grid grid-cols-2 gap-2 text-[11px]">
+                    <div className="bg-white p-2 rounded-lg border border-zinc-200/60 flex items-center gap-2">
+                      <Trees className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <div>
+                        <span className="text-[10px] text-zinc-400 block">Green Space Cover</span>
+                        <span className="font-semibold text-zinc-900">
+                          {greenCover != null ? `${greenCover}%` : '--'}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="bg-white p-2 rounded-lg border border-zinc-200/60 flex items-center gap-2">
+                      <Building2 className="w-4 h-4 text-zinc-600 shrink-0" />
+                      <div>
+                        <span className="text-[10px] text-zinc-400 block">Building Density</span>
+                        <span className="font-semibold text-zinc-900">
+                          {buildingDensity != null ? `${Math.round(buildingDensity * 100)}%` : '--'}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="bg-white p-2 rounded-lg border border-zinc-200/60 flex items-center gap-2">
+                      <HardHat className="w-4 h-4 text-amber-600 shrink-0" />
+                      <div>
+                        <span className="text-[10px] text-zinc-400 block">Outdoor Workers</span>
+                        <span className="font-semibold text-zinc-900">
+                          {workerDensity != null ? `${Math.round(workerDensity * 100)}%` : '--'}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="bg-white p-2 rounded-lg border border-zinc-200/60 flex items-center gap-2">
+                      <Users className="w-4 h-4 text-indigo-600 shrink-0" />
+                      <div>
+                        <span className="text-[10px] text-zinc-400 block">Older Cohort (65+)</span>
+                        <span className="font-semibold text-zinc-900">
+                          {elderlyPct != null ? `${elderlyPct}%` : '--'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-[10px] text-zinc-500 italic">No ward-level component data.</p>
+                )}
 
-            <div className="flex items-center justify-between bg-white p-2 rounded-lg border border-zinc-200/60 text-[11px]">
-              <span className="text-zinc-600">Baseline Vulnerability Score:</span>
-              <span className="font-mono font-bold text-zinc-900">
-                {vulnerabilityScore} / 100 ({vulnerabilityLevel})
-              </span>
-            </div>
+                <div className="flex items-center justify-between bg-white p-2 rounded-lg border border-zinc-200/60 text-[11px]">
+                  <span className="text-zinc-600">Baseline Vulnerability Score:</span>
+                  <span className="font-mono font-bold text-zinc-900">
+                    {vulnerabilityScore != null ? `${vulnerabilityScore} / 100 (${vulnerabilityLevel})` : '--'}
+                  </span>
+                </div>
+                {vulnerabilityProvenance?.status === 'Proxy' ? (
+                  <p className="text-[10px] text-zinc-500 italic leading-snug">
+                    Population-density proxy from real ward population &amp; area data. No claim about green
+                    space, housing quality, or health.
+                  </p>
+                ) : null}
+              </>
+            ) : (
+              <div className="bg-white p-3 rounded-lg border border-zinc-200/60 text-[11px] text-zinc-500 leading-snug">
+                <span className="font-semibold text-zinc-700 block">Vulnerability data unavailable</span>
+                No ward-level demographic baseline exists for this city. HeatPulse does not fabricate
+                ward differences — vulnerability is omitted until a real source is added.
+              </div>
+            )}
           </section>
 
           {/* ============================================================ */}
@@ -698,21 +729,25 @@ export default function WardDetailDrawer() {
               <div className="flex justify-between text-zinc-600 pt-1">
                 <span>Baseline Socio-Ecological Vulnerability (40% weight, β=0.4)</span>
                 <span className="font-mono font-semibold text-zinc-900">
-                  {Math.round(vulnerabilityScore * 0.4)} pts
+                  {componentDataAvailable && vulnerabilityScore != null
+                    ? `${Math.round(vulnerabilityScore * 0.4)} pts`
+                    : 'unavailable'}
                 </span>
               </div>
               <div className="w-full bg-zinc-200 h-1.5 rounded-full overflow-hidden">
-                <div className="bg-indigo-500 h-full rounded-full" style={{ width: '40%' }} />
+                <div className="bg-indigo-500 h-full rounded-full" style={{ width: componentDataAvailable ? '40%' : '0%' }} />
               </div>
             </div>
 
             <div className="p-2 bg-white rounded-lg border border-zinc-200/60 text-[11px] leading-snug text-zinc-600">
               <strong className="text-zinc-800">Primary Ward Driver: </strong>
-              {buildingDensity >= 0.8
+              {componentDataAvailable && buildingDensity != null && buildingDensity >= 0.8
                 ? 'High built-up density and structural thermal mass prolong nocturnal heat accumulation.'
-                : greenCover < 10
+                : componentDataAvailable && greenCover != null && greenCover < 10
                 ? 'Critically low vegetative canopy reduces evaporative cooling efficiency during afternoon hours.'
-                : 'Elevated atmospheric humidity elevates biometeorological load above ambient dry-bulb temperature.'}
+                : vulnerabilityAvailable
+                ? 'Composite risk driven primarily by elevated atmospheric heat hazard.'
+                : 'Vulnerability data unavailable — composite is driven by atmospheric heat hazard only.'}
             </div>
           </section>
 
@@ -749,7 +784,8 @@ export default function WardDetailDrawer() {
 
             <div className="p-2 bg-white/90 rounded-lg border border-rose-200/60 text-[10px] text-zinc-600 leading-snug">
               <strong>Epidemiological Disclosure: </strong>
-              Relative-risk estimate derived from biometeorological exposure (excess WBGT &gt; 28°C) and baseline vulnerability.
+              Relative-risk estimate derived from biometeorological exposure (excess WBGT &gt; 28°C)
+              {componentDataAvailable ? ' and baseline vulnerability' : ' (vulnerability unavailable — omitted from formula)'}.
               Zero synthetic mortality or hospitalization figures. (Health outcome model strictly pending clinical validation).
             </div>
           </section>

@@ -1,14 +1,17 @@
 /**
- * HeatPulse — Official IMD District Reference Warnings Service
+ * HeatPulse — District Heat Warning Evaluation (IMD-criteria based)
  * Standard: SIH26083 MoES / NCMRWF Master Build Specification
- * 
- * Segregation Architecture:
- * - Official district reference warnings are issued strictly at the DISTRICT level
- *   by the India Meteorological Department (IMD) / Ministry of Earth Sciences (MoES).
- * - HeatPulse localized thermal advisories are computed separately per ward centroid
- *   from NWP numerical weather grids and biometeorological equations.
- * - This service provides official district benchmarks without fabricating ward-level
- *   claims or conflating IMD official bulletins with localized municipal heuristics.
+ *
+ * Honest provenance: this module does NOT fetch or relay IMD bulletins. IMD does
+ * not expose a public warning API consumed here. HeatPulse applies IMD's published
+ * heat-wave criteria (Maximum Temperature and departure-from-normal thresholds) to
+ * locally-fetched NWP forecast data and evaluates the resulting alert color locally.
+ *
+ * Segregation:
+ * - District-scale evaluation: this module (IMD criteria applied to NWP forecasts).
+ * - Ward-localized thermal advisories: computed separately per ward centroid.
+ * The output is a HeatPulse evaluation PARAPHRASING IMD criteria — it is NOT an
+ * official IMD-issued product, and is labeled as such in `authority` / `disclaimer`.
  */
 
 export type ImdColorCode = 'GREEN' | 'YELLOW' | 'ORANGE' | 'RED';
@@ -85,21 +88,29 @@ export const MONITORED_DISTRICTS: Record<string, DistrictMetadata> = {
   },
 };
 
+// Authority / disclaimer are HONEST: HeatPulse evaluates IMD's published criteria
+// against local NWP data. The IMD itself has not issued these — no official
+// integration claim is made anywhere.
 const AUTHORITY_STRING =
-  'India Meteorological Department (IMD) - Ministry of Earth Sciences, Govt. of India';
+  'HeatPulse local evaluation applying India Meteorological Department (IMD) published heat-wave criteria — not an IMD-issued product';
 const DISCLAIMER_STRING =
-  'Official IMD District Reference Warnings represent meteorological guidance issued at the district scale. These warnings are segregated from HeatPulse localized ward thermal advisories.';
+  'This district heat evaluation is computed locally by HeatPulse from numerical weather forecast data using IMD’s published heat-wave threshold criteria. It is NOT an official IMD / MoES bulletin. For official warnings, refer to IMD / MoES channels directly.';
 
 /**
- * Evaluates official IMD district reference warning based on standard IMD criteria:
- * 
+ * Evaluates district-level heat warning color by applying IMD's published criteria
+ * to a locally-provided temperature (observed or forecast). Output is labeled as a
+ * HeatPulse evaluation — not an official IMD-issued warning.
+ *
  * Criteria for Indian Plains / Inland:
  * - Heat Wave: Tmax >= 40°C and departure >= 4.5°C; or actual Tmax >= 45°C.
  * - Severe Heat Wave: Tmax >= 40°C and departure >= 6.5°C; or actual Tmax >= 47°C.
- * 
+ *
  * Criteria for Coastal Stations:
  * - Heat Wave: Tmax >= 37°C and departure >= 4.5°C.
  * - Severe Heat Wave: Tmax >= 37°C and departure >= 6.5°C.
+ *
+ * NOTE: `normalTmax` values are climatological-reference constants supplied by
+ * HeatPulse (no live IMD normals API). They may drift from IMD's current normals.
  */
 export function evaluateImdDistrictWarning(
   cityId: string,
@@ -199,7 +210,7 @@ export function evaluateImdDistrictWarning(
 }
 
 /**
- * Retrieves official IMD district reference warnings for all 6 monitored city districts
+ * Retrieves HeatPulse IMD-criteria evaluations for all 6 monitored city districts
  */
 export function getAllImdDistrictWarnings(
   cityTemps?: Record<string, number>

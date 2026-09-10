@@ -13,6 +13,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCityForecast, WeatherUnavailableError } from '@/lib/weather-service';
 import { calculateThermalStress } from '@/lib/thermal-engine';
 import { assessWardRisk } from '@/lib/risk-engine';
+import { ALERT_THRESHOLDS } from '@/lib/threshold-config';
 import { evaluateImdDistrictWarning } from '@/lib/imd-service';
 import { generateAdvisory } from '@/lib/advisory-engine';
 
@@ -76,13 +77,13 @@ export async function GET(request: NextRequest) {
       let alertLevel: 'watch' | 'warning' | 'critical' | null = null;
       let message = '';
 
-      if (thermal.heat_index >= 41.0 || thermal.wbgt_estimated >= 32.0) {
+      if (thermal.heat_index >= ALERT_THRESHOLDS.criticalHi || thermal.wbgt_estimated >= ALERT_THRESHOLDS.criticalWbgt) {
         alertLevel = 'critical';
         message = `HeatPulse Localized Advisory: Critical Heat Index ${thermal.heat_index}°C in ${wardForecast.ward_name}. Strenuous outdoor labor should pause during peak hours.`;
-      } else if (thermal.heat_index >= 32.0 || thermal.wbgt_estimated >= 28.0) {
+      } else if (thermal.heat_index >= ALERT_THRESHOLDS.warningHi || thermal.wbgt_estimated >= ALERT_THRESHOLDS.warningWbgt) {
         alertLevel = 'warning';
         message = `HeatPulse Localized Advisory: Elevated Heat Index ${thermal.heat_index}°C in ${wardForecast.ward_name}. Reduce outdoor exertion and enforce regular hydration.`;
-      } else if (thermal.heat_index >= 27.0 || assessment.composite_risk_score >= 50) {
+      } else if (thermal.heat_index >= ALERT_THRESHOLDS.watchHi || assessment.composite_risk_score >= ALERT_THRESHOLDS.compositeWatch) {
         alertLevel = 'watch';
         message = `HeatPulse Localized Advisory: Heat Index ${thermal.heat_index}°C in ${wardForecast.ward_name}. Monitor microclimate conditions and support vulnerable populations.`;
       }
@@ -129,8 +130,9 @@ export async function GET(request: NextRequest) {
     const severityOrder = { critical: 0, warning: 1, watch: 2 };
     alerts.sort((a, b) => severityOrder[a.level] - severityOrder[b.level]);
 
-    // Provide official IMD district reference warning alongside (strictly segregated)
-    const imdDistrictReference = evaluateImdDistrictWarning(cityParam, maxTemp);
+    // Provide IMD-criteria district evaluation alongside (criteria-based, not an
+    // official IMD bulletin — see imd-service.ts provenance note)
+    const districtHeatEvaluation = evaluateImdDistrictWarning(cityParam, maxTemp);
 
     return NextResponse.json({
       success: true,
@@ -138,7 +140,7 @@ export async function GET(request: NextRequest) {
       generated_at: run.metadata.fetched_at,
       status,
       forecast_metadata: run.metadata,
-      official_imd_district_reference: imdDistrictReference,
+      district_heat_evaluation: districtHeatEvaluation,
       alerts,
       alertCount: alerts.length,
       summary: {

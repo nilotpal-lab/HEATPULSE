@@ -136,8 +136,10 @@ export interface WardRiskAssessment {
   ward_name: string;
   city_id: string;
   thermal: ThermalCalculations;
-  vulnerability_score: number; // 0-100 (Census baseline)
+  vulnerability_score: number; // 0-100 (Census baseline); 0 when provenance is Unavailable
   vulnerability_level: VulnerabilityLevel;
+  /** Proves the vulnerability figures; status Unavailable means score is 0. */
+  vulnerability_provenance: VulnerabilityProvenance;
   composite_risk_score: number; // 0-100: (0.6 * thermalScore) + (0.4 * vulnerabilityScore)
   composite_risk_level: CompositeRiskLevel;
   forecast_metadata: ForecastRunMetadata;

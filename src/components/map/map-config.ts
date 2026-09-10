@@ -2,17 +2,26 @@
  * HeatPulse — Map Configuration, Unified Classification Engine & Dynamic Legends
  * Conforms to Requirement R2, R3, R8 & PROJECT.md § Basemap Engine & Visual Hierarchy
  *
- * Harmonizes thresholds across all thematic layers:
- * 1. Heat Conditions: Dry-bulb ambient temperature (Normal <32°C, Elevated 32–40°C, High 41–53°C, Extreme ≥54°C)
+ * Legend thresholds in this module are the presentation of the authoritative
+ * numeric values defined in src/lib/threshold-config.ts — the single source of
+ * truth for classification. The classification FUNCTIONS below delegate to
+ * threshold-config so no duplicate numerics live in this file.
+ *
+ * 1. Heat Conditions: Dry-bulb ambient temperature (Normal <35°C, Elevated 35–40°C, High 40–45°C, Extreme ≥45°C)
  * 2. Thermal Stress: Biometeorological WBGT / Heat Index (Low <28°C, Moderate 28–30°C, High 30–32°C, Severe ≥32°C)
- * 3. Health Impact: Epidemiological Relative Risk proxy (Baseline <1.15, Elevated 1.15–1.30, High 1.30–1.50, Critical ≥1.50)
- * 4. Composite Risk: Multi-criteria decision support index (Low, Moderate, High, Extreme, Critical)
+ * 3. Health Impact: Relative Risk proxy bands (Baseline <1.15, Elevated 1.15–1.30, High 1.30–1.50, Critical ≥1.50)
+ * 4. Composite Risk: Composite score index (Low <30, Moderate 30–50, High 50–70, Severe ≥70)
  */
 
 import {
   type ThematicLayerType,
   type WardRisk,
 } from '@/lib/map-config';
+import {
+  classifyHeatCondition,
+  classifyThermalStress,
+  calculateRelativeRisk,
+} from '@/lib/threshold-config';
 
 // Re-export all existing map and GIS primitives from @/lib/map-config for seamless compatibility
 export * from '@/lib/map-config';
@@ -56,53 +65,53 @@ export const THEMATIC_LAYER_CONFIGS: Record<ThematicLayerType, ThematicLayerConf
     items: [
       {
         key: 'Normal',
-        label: 'Normal (<32°C)',
-        rangeText: '<32°C',
+        label: 'Normal (<35°C)',
+        rangeText: '<35°C',
         fill: 'rgba(59, 130, 246, 0.45)',
         stroke: '#2563eb',
         badgeBg: 'bg-blue-50',
         badgeText: 'text-blue-700',
         badgeBorder: 'border-blue-200',
         desc: 'No advisory',
-        max: 32,
+        max: 35,
       },
       {
         key: 'Elevated',
-        label: 'Elevated (32–40°C)',
-        rangeText: '32–40°C',
+        label: 'Elevated (35–40°C)',
+        rangeText: '35–40°C',
         fill: 'rgba(234, 179, 8, 0.45)',
         stroke: '#ca8a04',
         badgeBg: 'bg-amber-100',
         badgeText: 'text-amber-800',
         badgeBorder: 'border-amber-300',
         desc: 'Caution',
-        min: 32,
-        max: 41,
+        min: 35,
+        max: 40,
       },
       {
         key: 'High',
-        label: 'High (41–53°C)',
-        rangeText: '41–53°C',
+        label: 'High (40–45°C)',
+        rangeText: '40–45°C',
         fill: 'rgba(249, 115, 22, 0.48)',
         stroke: '#ea580c',
         badgeBg: 'bg-orange-100',
         badgeText: 'text-orange-800',
         badgeBorder: 'border-orange-300',
         desc: 'Extreme Caution',
-        min: 41,
-        max: 54,
+        min: 40,
+        max: 45,
       },
       {
         key: 'Extreme',
-        label: 'Extreme (≥54°C)',
-        rangeText: '≥54°C',
+        label: 'Extreme (≥45°C)',
+        rangeText: '≥45°C',
         fill: 'rgba(220, 38, 38, 0.52)',
         stroke: '#b91c1c',
         badgeBg: 'bg-red-100',
         badgeText: 'text-red-800',
         badgeBorder: 'border-red-300',
         desc: 'Danger',
-        min: 54,
+        min: 45,
       },
     ],
   },
@@ -232,6 +241,10 @@ export const THEMATIC_LAYER_CONFIGS: Record<ThematicLayerType, ThematicLayerConf
     metricLabel: 'Composite Risk',
     unit: 'Score',
     subtitle: 'Decision Support Index',
+    // Bands keyed to the four engine levels (Low/Moderate/High/Severe) at the
+    // authoritative COMPOSITE_RISK_THRESHOLDS. The legacy 5-band vocabulary
+    // (extreme/danger) was never emitted by the risk engine — it miscolored
+    // scores ≥70 as green. Kept aligned with threshold-config.
     items: [
       {
         key: 'low',
@@ -272,29 +285,16 @@ export const THEMATIC_LAYER_CONFIGS: Record<ThematicLayerType, ThematicLayerConf
         max: 70,
       },
       {
-        key: 'extreme',
-        label: 'Extreme Risk',
-        rangeText: '70–85',
-        fill: 'rgba(234, 88, 12, 0.50)',
-        stroke: '#ea580c',
-        badgeBg: 'bg-orange-100',
-        badgeText: 'text-orange-800',
-        badgeBorder: 'border-orange-300',
-        desc: 'EXTREME',
-        min: 70,
-        max: 85,
-      },
-      {
-        key: 'danger',
-        label: 'Critical Risk',
-        rangeText: '85–100',
+        key: 'severe',
+        label: 'Severe Risk',
+        rangeText: '70–100',
         fill: 'rgba(220, 38, 38, 0.55)',
         stroke: '#dc2626',
         badgeBg: 'bg-red-100',
         badgeText: 'text-red-800',
         badgeBorder: 'border-red-300',
-        desc: 'CRITICAL',
-        min: 85,
+        desc: 'SEVERE',
+        min: 70,
       },
     ],
   },
@@ -308,48 +308,60 @@ export function getLayerLegendConfig(layer: ThematicLayerType): ThematicLayerCon
 }
 
 /**
- * Classifies ambient dry-bulb temperature into harmonized Heat Conditions.
+ * Classifies ambient dry-bulb temperature into Heat Conditions.
+ * Classification delegates to threshold-config (single source of truth);
+ * only the legend item lookup is local.
  */
 export function classifyHeatConditionValue(temp?: number, heatIndex?: number): ThresholdItem {
   const cfg = THEMATIC_LAYER_CONFIGS.heat_conditions;
   const t = temp ?? heatIndex ?? 0;
-  if (t >= 54) return cfg.items[3]; // Extreme
-  if (t >= 41) return cfg.items[2]; // High
-  if (t >= 32) return cfg.items[1]; // Elevated
-  return cfg.items[0]; // Normal
+  const level = classifyHeatCondition(t);
+  switch (level) {
+    case 'Extreme': return cfg.items[3];
+    case 'High': return cfg.items[2];
+    case 'Elevated': return cfg.items[1];
+    default: return cfg.items[0];
+  }
 }
 
 /**
- * Classifies biometeorological WBGT and NOAA Heat Index into harmonized Thermal Stress.
+ * Classifies biometeorological WBGT / Heat Index into Thermal Stress.
+ * Delegates to threshold-config; legend lookup only.
  */
 export function classifyThermalStressValue(wbgt?: number, heatIndex?: number): ThresholdItem {
   const cfg = THEMATIC_LAYER_CONFIGS.thermal_stress;
-  const w = wbgt ?? 0;
-  const hi = heatIndex ?? 0;
-  if (w >= 32 || hi >= 41) return cfg.items[3]; // Severe
-  if (w >= 30 || hi >= 32) return cfg.items[2]; // High
-  if (w >= 28 || hi >= 27) return cfg.items[1]; // Moderate
-  return cfg.items[0]; // Low
+  const level = classifyThermalStress(heatIndex ?? 0, wbgt);
+  switch (level) {
+    case 'Severe': return cfg.items[3];
+    case 'High': return cfg.items[2];
+    case 'Moderate': return cfg.items[1];
+    default: return cfg.items[0];
+  }
 }
 
 /**
  * Calculates Relative Risk proxy from WBGT and baseline vulnerability.
- * Formulation: RR = 1.0 + max(0, wbgt - 27.0)*0.12 + (vuln / 100)*0.15
+ * Math delegates to threshold-config.calculateRelativeRisk (onset 28.0°C);
+ * no fabricated defaults — missing inputs yield ~baseline, and the map is not
+ * colored by a fake WBGT=28/vuln=50 when data is absent.
  */
 export function calculateRelativeRiskProxy(wbgt?: number, vulnScore?: number): {
   rr: number;
   item: ThresholdItem;
 } {
   const cfg = THEMATIC_LAYER_CONFIGS.health_impact;
-  const w = wbgt ?? 28;
-  const vuln = vulnScore ?? 50;
-  const excessWbgt = Math.max(0, w - 27.0);
-  const rr = Number((1.0 + excessWbgt * 0.12 + (vuln / 100) * 0.15).toFixed(2));
+  const w = typeof wbgt === 'number' && Number.isFinite(wbgt) ? wbgt : undefined;
+  const vuln =
+    typeof vulnScore === 'number' && Number.isFinite(vulnScore) ? vulnScore : undefined;
+  const est = calculateRelativeRisk(w, vuln);
+  const rr = est.rr;
 
-  if (rr >= 1.5 || w >= 32) return { rr, item: cfg.items[3] }; // Critical
-  if (rr >= 1.3 || w >= 30) return { rr, item: cfg.items[2] }; // High
-  if (rr >= 1.15 || w >= 28) return { rr, item: cfg.items[1] }; // Elevated
-  return { rr, item: cfg.items[0] }; // Baseline
+  switch (est.band) {
+    case 'Critical': return { rr, item: cfg.items[3] };
+    case 'High': return { rr, item: cfg.items[2] };
+    case 'Elevated': return { rr, item: cfg.items[1] };
+    default: return { rr, item: cfg.items[0] };
+  }
 }
 
 /**

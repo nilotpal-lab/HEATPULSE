@@ -62,7 +62,7 @@ function calculateWBGT(tempC, rhPercent) {
   return Math.round((0.567 * tempC + 0.393 * e + 3.94) * 10) / 10;
 }
 
-function calculateHeatIndex(tempC, rhPercent) {
+function calculateHeatIndexRef(tempC, rhPercent) {
   const T = tempC, RH = rhPercent;
   const HI = -8.78469 + 1.61139411*T + 2.338549*RH - 0.14611605*T*RH
     - 0.01230469*T*T - 0.01642482*RH*RH + 0.00221173*T*T*RH
@@ -81,12 +81,57 @@ const wbgt70rh = calculateWBGT(32, 70);
 const wbgt90rh = calculateWBGT(32, 90);
 assert(wbgt40rh < wbgt70rh && wbgt70rh < wbgt90rh, 'WBGT increases monotonically with humidity at 32C', '40%=' + wbgt40rh + ' 70%=' + wbgt70rh + ' 90%=' + wbgt90rh);
 
-const hi35 = calculateHeatIndex(35, 60);
+const hi35 = calculateHeatIndexRef(35, 60);
 assert(hi35 >= 40.0 && hi35 <= 55.0, 'Heat Index at 35C + 60% RH is in 40-55C range', 'Got HI=' + hi35);
 
-const hi30 = calculateHeatIndex(30, 60);
-const hi40 = calculateHeatIndex(40, 60);
+const hi30 = calculateHeatIndexRef(30, 60);
+const hi40 = calculateHeatIndexRef(40, 60);
 assert(hi30 < hi35 && hi35 < hi40, 'Heat Index increases monotonically with temperature at 60% RH', '30C=' + hi30 + ' 35C=' + hi35 + ' 40C=' + hi40);
+
+
+// --- Single source of truth: parse authoritative thresholds from production.
+const thresholdSrc = readFileSync(join(ROOT, 'src/lib/threshold-config.ts'), 'utf-8');
+function parseConst(src, name) {
+  const m = src.match(new RegExp(name + '\\s*:\\s*([0-9]+(?:\\.[0-9]+)?)'));
+  return m ? parseFloat(m[1]) : null;
+}
+const TCFG = {
+  modWbgt: parseConst(thresholdSrc, 'moderateWbgt'),
+  modHi: parseConst(thresholdSrc, 'moderateHi'),
+  highWbgt: parseConst(thresholdSrc, 'highWbgt'),
+  highHi: parseConst(thresholdSrc, 'highHi'),
+  sevWbgt: parseConst(thresholdSrc, 'severeWbgt'),
+  sevHi: parseConst(thresholdSrc, 'severeHi'),
+  heatElevated: parseConst(thresholdSrc, 'elevated'),
+  heatHigh: parseConst(thresholdSrc, '(?<!\w)high(?!Wbgt)'),
+  heatExtreme: parseConst(thresholdSrc, 'extreme'),
+};
+assert(TCFG.modWbgt === 28 && TCFG.highWbgt === 30 && TCFG.sevWbgt === 32, 'threshold-config WBGT bands are 28/30/32', JSON.stringify(TCFG));
+assert(TCFG.modHi === 27 && TCFG.highHi === 32 && TCFG.sevHi === 41, 'threshold-config HI bands are 27/32/41', JSON.stringify(TCFG));
+assert(TCFG.heatElevated === 35, 'threshold-config heat elevated is 35', JSON.stringify(TCFG));
+assert(TCFG.heatExtreme === 45, 'threshold-config heat extreme is 45', JSON.stringify(TCFG));
+const singleSourceConsumers = [
+  'src/lib/thermal-engine.ts',
+  'src/lib/risk-engine.ts',
+  'src/lib/advisory-engine.ts',
+  'src/lib/map-config.ts',
+  'src/components/map/map-config.ts',
+  'src/app/api/alerts/route.ts',
+  'src/app/api/states/route.ts',
+  'src/app/api/twin-ward/route.ts',
+  'src/app/page.tsx',
+  'src/app/india/page.tsx',
+  'src/components/drawer/WardDetailDrawer.tsx',
+  'src/components/map/MapContainer.tsx',
+ ];
+for (const rel of singleSourceConsumers) {
+  const p = join(ROOT, rel);
+  if (!existsSync(p)) { console.log('  SKIP: ' + rel + ' not found'); continue; }
+  const src = readFileSync(p, 'utf-8');
+  assert(/threshold-config/.test(src), rel + ' imports the single threshold source', '');
+}
+{ const src = readFileSync(join(ROOT, 'src/app/api/states/route.ts'), 'utf-8'); assert(!/2\\.04901523/.test(src), 'api/states has no duplicate Rothfusz regression', ''); }
+{ const src = readFileSync(join(ROOT, 'src/lib/risk-engine.ts'), 'utf-8'); assert(src.includes('calculateAuthoritativeThermalScore'), 'risk-engine delegates thermal-score math', ''); }
 
 // ============================================================
 // SECTION 2: Forecast Timestamp Separation (R1, R2)
@@ -114,7 +159,7 @@ assert(currentHourWbgt !== forecastPeakWbgt, 'Current-hour WBGT and forecast pea
 // ============================================================
 section('3. Risk Engine (R6, R7, R8, R9)');
 
-function compositeRisk(thermalScore, vulnerabilityScore) {
+function compositeRiskRef(thermalScore, vulnerabilityScore) {
   return Math.round((0.6 * thermalScore + 0.4 * vulnerabilityScore) * 1000) / 1000;
 }
 
@@ -126,9 +171,9 @@ function classifyRisk(composite) {
   return 'Normal';
 }
 
-const comp1 = compositeRisk(0.8, 0.6);
+const comp1 = compositeRiskRef(0.8, 0.6);
 assert(Math.abs(comp1 - 0.72) < 0.01, 'Composite(0.8, 0.6) = 0.72', 'Got ' + comp1);
-assert(classifyRisk(compositeRisk(0, 0)) === 'Normal', 'Composite(0, 0) is Normal', 'Got ' + classifyRisk(compositeRisk(0, 0)));
+assert(classifyRisk(compositeRiskRef(0, 0)) === 'Normal', 'Composite(0, 0) is Normal', 'Got ' + classifyRisk(compositeRiskRef(0, 0)));
 assert(classifyRisk(0.80) === 'Severe', 'Composite 0.80 is Severe', 'Got ' + classifyRisk(0.80));
 assert(classifyRisk(0.60) === 'High', 'Composite 0.60 is High', 'Got ' + classifyRisk(0.60));
 assert(classifyRisk(0.40) === 'Moderate', 'Composite 0.40 is Moderate', 'Got ' + classifyRisk(0.40));
@@ -141,12 +186,12 @@ assert(Math.abs(0.6 + 0.4 - 1.0) < 0.001, 'Composite weights sum to 1.0 (0.6 + 0
 section('4. Health Layer Relative Risk (R5, R10)');
 
 function relativeRisk(wbgt, vulnScore) {
-  const thermalBurden = Math.max(0, wbgt - 27.0) * 0.12;
+  const thermalBurden = Math.max(0, wbgt - TCFG.rrOnset) * 0.12;
   const vulnBurden = (vulnScore / 100) * 0.15;
   return Math.round((1.0 + thermalBurden + vulnBurden) * 100) / 100;
 }
 
-const rrBaseline = relativeRisk(27.0, 0);
+const rrBaseline = relativeRisk(TCFG.rrOnset, 0);
 assert(Math.abs(rrBaseline - 1.0) < 0.01, 'RR at WBGT=27.0 + vuln=0 equals 1.0 (baseline)', 'Got RR=' + rrBaseline);
 assert(relativeRisk(20.0, 10) >= 1.0, 'Relative Risk is never less than 1.0', 'Got RR=' + relativeRisk(20.0, 10));
 assert(relativeRisk(32, 50) > relativeRisk(28, 50), 'RR at WBGT=32 > RR at WBGT=28', '');
@@ -267,7 +312,7 @@ for (const field of ['ward_id', 'temperature', 'relative_humidity', 'heat_index'
 }
 assert(sampleWardHour.composite_risk >= 0 && sampleWardHour.composite_risk <= 1, 'composite_risk is in [0,1]', 'Got ' + sampleWardHour.composite_risk);
 
-const expectedComposite = compositeRisk(sampleWardHour.thermal_score, sampleWardHour.vulnerability_score);
+const expectedComposite = compositeRiskRef(sampleWardHour.thermal_score, sampleWardHour.vulnerability_score);
 assert(Math.abs(expectedComposite - sampleWardHour.composite_risk) < 0.01, 'composite_risk matches 0.6*thermal + 0.4*vuln formula', 'Expected ' + expectedComposite + ' got ' + sampleWardHour.composite_risk);
 
 // ============================================================

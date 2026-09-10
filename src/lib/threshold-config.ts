@@ -112,17 +112,18 @@ export function classifyHeatCondition(tempC: number): HeatConditionLevel {
 }
 
 /** Classifies human biometeorological Thermal Stress from HI (and WBGT when available). */
-export function classifyThermalStress(heatIndex: number, wbgt?: number): ThermalStressLevel {
+export function classifyThermalStress(heatIndex?: number, wbgt?: number): ThermalStressLevel {
   const t = THERMAL_STRESS_THRESHOLDS;
+  const hi = heatIndex ?? 0;
   if (wbgt !== undefined) {
-    if (wbgt >= t.severeWbgt || heatIndex >= t.severeHi) return 'Severe';
-    if (wbgt >= t.highWbgt || heatIndex >= t.highHi) return 'High';
-    if (wbgt >= t.moderateWbgt || heatIndex >= t.moderateHi) return 'Moderate';
+    if (wbgt >= t.severeWbgt || hi >= t.severeHi) return 'Severe';
+    if (wbgt >= t.highWbgt || hi >= t.highHi) return 'High';
+    if (wbgt >= t.moderateWbgt || hi >= t.moderateHi) return 'Moderate';
     return 'Low';
   }
-  if (heatIndex >= t.severeHi) return 'Severe';
-  if (heatIndex >= t.highHi) return 'High';
-  if (heatIndex >= t.moderateHi) return 'Moderate';
+  if (hi >= t.severeHi) return 'Severe';
+  if (hi >= t.highHi) return 'High';
+  if (hi >= t.moderateHi) return 'Moderate';
   return 'Low';
 }
 
