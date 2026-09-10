@@ -19,12 +19,15 @@
  */
 
 import {
-  HeatConditionLevel,
   RiskLevel,
   ThermalCalculations,
   ThermalReadings,
   ThermalStressLevel,
 } from '../types/thermal';
+import {
+  classifyHeatCondition,
+  classifyThermalStress,
+} from './threshold-config';
 
 /**
  * Calculates NOAA Rothfusz Heat Index (°C) with mandatory NWS humidity adjustments.
@@ -108,38 +111,16 @@ export function approximateUTCI(
 }
 
 /**
- * Classifies physical atmospheric Heat Conditions based on 2m dry-bulb air temperature:
- * - Normal: < 35°C
- * - Elevated: 35°C to 40°C
- * - High: 40°C to 45°C
- * - Extreme: >= 45°C
+ * Classifies physical atmospheric Heat Conditions based on 2m dry-bulb air temperature.
+ * Thresholds live in threshold-config.ts (single source of truth).
  */
-export function classifyHeatCondition(tempC: number): HeatConditionLevel {
-  if (tempC >= 45.0) return 'Extreme';
-  if (tempC >= 40.0) return 'High';
-  if (tempC >= 35.0) return 'Elevated';
-  return 'Normal';
-}
+export { classifyHeatCondition };
 
 /**
- * Classifies human biometeorological Thermal Stress based on NOAA Heat Index and BoM WBGT:
- * - Severe: WBGT >= 32°C or HI >= 41°C (Danger / Extreme Danger: heat cramps/exhaustion likely, heat stroke possible)
- * - High: WBGT >= 30°C or HI >= 32°C (Extreme Caution: sunstroke and heat exhaustion possible with prolonged exposure)
- * - Moderate: WBGT >= 28°C or HI >= 27°C (Caution: fatigue possible with prolonged exposure and activity)
- * - Low: Otherwise (Normal: minimal physiological heat strain)
+ * Classifies human biometeorological Thermal Stress based on NOAA Heat Index and BoM WBGT.
+ * Thresholds live in threshold-config.ts (single source of truth).
  */
-export function classifyThermalStress(heatIndex: number, wbgt?: number): ThermalStressLevel {
-  if (wbgt !== undefined) {
-    if (wbgt >= 32.0 || heatIndex >= 41.0) return 'Severe';
-    if (wbgt >= 30.0 || heatIndex >= 32.0) return 'High';
-    if (wbgt >= 28.0 || heatIndex >= 27.0) return 'Moderate';
-    return 'Low';
-  }
-  if (heatIndex >= 41.0) return 'Severe';
-  if (heatIndex >= 32.0) return 'High';
-  if (heatIndex >= 27.0) return 'Moderate';
-  return 'Low';
-}
+export { classifyThermalStress };
 
 /**
  * Legacy risk level classification mapping for backward compatibility with existing UI components

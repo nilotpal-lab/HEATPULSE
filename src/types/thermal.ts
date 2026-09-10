@@ -71,14 +71,45 @@ export type RiskLevel = 'low' | 'moderate' | 'high' | 'extreme' | 'danger';
 // ============================================================================
 export type VulnerabilityLevel = 'Low' | 'Moderate' | 'High' | 'Severe';
 
+/**
+ * Provenance classification for every vulnerability value surfaced in the UI.
+ * - Observed:  directly measured at ward level
+ * - Official:  published government statistic at the stated geography
+ * - Estimated: derived/seeded from official statistics via documented assumptions
+ * - Proxy:     derived from a genuine input via a transparent approximation
+ * - Baseline:  uniform city-level constant where no ward-level data exists
+ * - Unavailable: no defensible value; UI must show unavailable, never a number
+ */
+export type VulnerabilityProvenanceStatus =
+  | 'Observed'
+  | 'Official'
+  | 'Estimated'
+  | 'Proxy'
+  | 'Baseline'
+  | 'Unavailable';
+
+export interface VulnerabilityProvenance {
+  status: VulnerabilityProvenanceStatus;
+  /** Named dataset or table the value derives from. */
+  source: string;
+  source_year?: number;
+  /** Geography the underlying data actually resolves to (e.g. 'Ward (Pune)'). */
+  geography: string;
+  /** How the score/variables were computed from the source. */
+  methodology: string;
+}
+
 export interface Vulnerability {
   score: number; // 0-100 baseline composite
   level: VulnerabilityLevel;
-  green_space_pct: number;
-  building_density: number; // 0-1 relative density
-  outdoor_worker_density: number; // 0-1 relative density
+  // Component variables — present ONLY when the underlying dataset actually
+  // supports them. Undefined means "no ward-level data"; UI shows unavailable.
+  green_space_pct?: number;
+  building_density?: number; // 0-1 relative density
+  outdoor_worker_density?: number; // 0-1 relative density
   is_estimated_baseline: boolean;
   data_source: string;
+  provenance: VulnerabilityProvenance;
 }
 
 // ============================================================================
