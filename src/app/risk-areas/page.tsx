@@ -6,7 +6,7 @@
  *
  * Capabilities:
  * 1. Ranked priority ward table across all municipal wards in selected city
- * 2. Real-time search by ward name or ID
+ * 2. Instant search by ward name or ID (client-side, no server polling)
  * 3. Sorting by Composite Risk, Thermal Score, Vulnerability, or Ward Name
  * 4. Filtering by Risk Level (All, Severe, High, Moderate, Low)
  * 5. Synchronized selection opening the 8-Section Ward Detail Drawer
@@ -395,7 +395,7 @@ export default function RiskAreasPage() {
                     <td colSpan={8} className="py-12 text-center text-zinc-500 text-sm">
                       <div className="max-w-md mx-auto space-y-3">
                         <p className="text-zinc-700 font-medium">
-                          Unable to retrieve live risk assessments for {cityMeta.name}.
+                          Unable to retrieve current risk assessments for {cityMeta.name}.
                         </p>
                         <p className="text-xs text-zinc-400">
                           {data.errorMessage || 'Upstream numerical weather prediction data was temporarily unavailable.'}

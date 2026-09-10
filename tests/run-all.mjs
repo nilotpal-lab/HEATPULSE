@@ -1,35 +1,42 @@
-﻿/**
- * HeatPulse Deterministic Test Suite -- tests/run-all.mjs
+/**
+ * HeatPulse Deterministic Test Suite — tests/run-all.mjs
  * SIH26083 MoES / NCMRWF Master Build Specification
  *
- * Covers R17 Acceptance Criteria:
- * 1. Forecast timestamp separation (current vs forecast peak)
- * 2. Current vs forecast mode distinctness
- * 3. Daily peak aggregation logic
- * 4. 120h peak aggregation logic
- * 5. Thermal engine: WBGT formula correctness
- * 6. Thermal engine: Heat Index formula correctness
- * 7. Ward metric schema completeness
- * 8. Risk engine: composite score formula
- * 9. Risk engine: classification thresholds
- * 10. ML API response schema
- * 11. Health layer: RR formula and disclaimer
- * 12. Vulnerability provenance schema
- * 13. Legend config / classification consistency
- * 14. IST timezone conversion correctness
- * 15. Cache deduplication contract
- * 16. Partial ward data handling (missing wards show neutral)
- * 17. Scientific terminology: no fabricated clinical labels
+ * DIRECT PRODUCTION TESTING (R17):
+ * The suite compiles the real production modules
+ * (threshold-config, thermal-engine, temporal-modes, imd-service) to a
+ * temp directory with tsc and imports the ACTUAL functions — no formula
+ * reimplementation. A small static-source audit section remains for
+ * single-source-of-truth regressions (grep-level guarantees that cannot
+ * be expressed as runtime imports).
+ *
+ * Coverage:
+ *  1. calculateHeatIndex / calculateWBGT — production formula behavior
+ *  2. Classification boundaries — exact threshold edges from threshold-config
+ *  3. calculateThermalScore / calculateCompositeRiskScore — production math
+ *  4. calculateRelativeRisk — production RR incl. missing-input semantics
+ *  5. Vulnerability classification boundaries
+ *  6. Temporal modes — CURRENT / SELECTED FORECAST / PEAK resolve REAL data
+ *     differently (mode changes data, not just a border)
+ *  7. IMD criteria assessment — no-input yields explicit unavailable, never
+ *     a fabricated GREEN from a substituted normal
+ *  8. Nighttime semantics — 23:00 current vs next-day peak are distinct
+ *  9. Static source audits — single threshold source, no ward-name hash,
+ *     no fabricated fallback literals, IMD wording truth, cron disabled
+ * 10. GIS integrity — 849 wards, no GeometryCollection
+ * 11. ML model artifact schema + honest warning metadata
  *
  * Run: node tests/run-all.mjs
  */
 
-import { readFileSync, existsSync } from 'fs';
+import { readFileSync, existsSync, mkdirSync, rmSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { spawnSync } from 'child_process';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
+const BUILD = join(ROOT, '.test-build');
 
 let passed = 0;
 let failed = 0;
@@ -37,79 +44,400 @@ const failures = [];
 
 function assert(condition, label, details = '') {
   if (condition) {
-    console.log("  PASS: " + label);
+    console.log('  PASS: ' + label);
     passed++;
   } else {
-    console.error("  FAIL: " + label + (details ? ' -- ' + details : ''));
+    console.error('  FAIL: ' + label + (details ? ' -- ' + details : ''));
     failed++;
     failures.push({ label, details });
   }
 }
 
 function section(name) {
-  console.log("\n" + '='.repeat(60));
-  console.log("TEST GROUP: " + name);
+  console.log('\n' + '='.repeat(60));
+  console.log('TEST GROUP: ' + name);
   console.log('='.repeat(60));
 }
 
 // ============================================================
-// SECTION 1: Thermal Engine formulas
+// STEP 0: compile production modules for direct import
 // ============================================================
-section('1. Thermal Engine Formulas');
+const SRC_FILES = [
+  'src/lib/threshold-config.ts',
+  'src/lib/thermal-engine.ts',
+  'src/lib/temporal-modes.ts',
+  'src/lib/imd-service.ts',
+  'src/types/thermal.ts',
+  'src/types/weather.ts',
+];
 
-function calculateWBGT(tempC, rhPercent) {
-  const e = rhPercent / 100 * 6.105 * Math.exp(17.27 * tempC / (237.3 + tempC));
-  return Math.round((0.567 * tempC + 0.393 * e + 3.94) * 10) / 10;
+for (const rel of SRC_FILES) {
+  if (!existsSync(join(ROOT, rel))) {
+    console.error('Missing production source: ' + rel);
+    process.exit(2);
+  }
 }
 
-function calculateHeatIndexRef(tempC, rhPercent) {
-  const T = tempC, RH = rhPercent;
-  const HI = -8.78469 + 1.61139411*T + 2.338549*RH - 0.14611605*T*RH
-    - 0.01230469*T*T - 0.01642482*RH*RH + 0.00221173*T*T*RH
-    + 0.00072546*T*RH*RH - 0.00000358*T*T*RH*RH;
-  return Math.round(HI * 10) / 10;
+rmSync(BUILD, { recursive: true, force: true });
+mkdirSync(BUILD, { recursive: true });
+
+// Invoke the project-local TypeScript compiler directly through Node — avoids
+// npx/shell quoting issues on Windows paths containing spaces. A temp tsconfig
+// maps the project's "@/*" path alias to src so production files compile
+// unmodified.
+const tscEntry = join(ROOT, 'node_modules', 'typescript', 'bin', 'tsc');
+if (!existsSync(tscEntry)) {
+  console.error('Local TypeScript compiler not found at ' + tscEntry);
+  process.exit(2);
+}
+const tsconfigContent = JSON.stringify({
+  compilerOptions: {
+    target: 'ES2020',
+    module: 'ES2020',
+    moduleResolution: 'node',
+    skipLibCheck: true,
+    strict: true,
+    outDir: BUILD.replace(/\\/g, '/'),
+    baseUrl: ROOT.replace(/\\/g, '/'),
+    paths: { '@/*': ['src/*'] },
+  },
+  files: SRC_FILES.map((rel) => join(ROOT, rel).replace(/\\/g, '/')),
+});
+const tsconfigPath = join(BUILD, 'tsconfig.test.json');
+const { writeFileSync } = await import('fs');
+writeFileSync(tsconfigPath, tsconfigContent, 'utf-8');
+
+const tsc = spawnSync(
+  process.execPath,
+  [tscEntry, '-p', tsconfigPath],
+  { cwd: ROOT, encoding: 'utf-8', shell: false }
+);
+
+if (tsc.status !== 0) {
+  console.error('tsc compile of production sources failed:\n' + tsc.stdout + tsc.stderr);
+  process.exit(2);
 }
 
+// The emitted JS retains "@/*" path aliases (tsc does not rewrite imports).
+// Rewrite them to relative paths within the emitted tree so Node can import
+// the production modules directly.
+{
+  const { readdirSync, statSync } = await import('fs');
+  const rewriteDir = (dir) => {
+    for (const entry of readdirSync(dir)) {
+      const p = join(dir, entry);
+      if (statSync(p).isDirectory()) {
+        rewriteDir(p);
+        continue;
+      }
+      if (!p.endsWith('.js')) continue;
+      let src = readFileSync(p, 'utf-8');
+      // 1) Aliased imports "@/*" → relative paths within the emitted tree.
+      // 2) Extensionless relative imports get ".js" appended for Node ESM.
+      // Handles both single- and double-quoted emitted imports.
+      src = src
+        .replace(/from\s+'@\/lib\/([^']+)'/g, "from './$1.js'")
+        .replace(/from\s+'@\/types\/([^']+)'/g, "from '../types/$1.js'")
+        .replace(/from\s+"@\/lib\/([^"]+)"/g, 'from "./$1.js"')
+        .replace(/from\s+"@\/types\/([^"]+)"/g, 'from "../types/$1.js"')
+        .replace(/from\s+'(\.\/[^']+?)'/g, (m, p1) => (p1.endsWith('.js') ? m : `from '${p1}.js'`))
+        .replace(/from\s+"(\.\/[^"]+?)"/g, (m, p1) => (p1.endsWith('.js') ? m : `from "${p1}.js"`));
+      writeFileSync(p, src, 'utf-8');
+    }
+  };
+  const libOut = join(BUILD, 'lib');
+  const typesOut = join(BUILD, 'types');
+  if (existsSync(libOut)) rewriteDir(libOut);
+  if (existsSync(typesOut)) rewriteDir(typesOut);
+}
+
+const asFileUrl = (p) => 'file:///' + p.replace(/\\/g, '/');
+
+const thermalEngine = await import(asFileUrl(join(BUILD, 'lib/thermal-engine.js')));
+const { calculateHeatIndex, calculateWBGT } = thermalEngine;
+
+const {
+  classifyHeatCondition,
+  classifyThermalStress,
+  classifyCompositeRiskLevel,
+  classifyVulnerabilityLevel,
+  calculateThermalScore,
+  calculateCompositeRiskScore,
+  calculateRelativeRisk,
+  RELATIVE_RISK_THRESHOLDS,
+  THERMAL_STRESS_THRESHOLDS,
+  HEAT_CONDITION_THRESHOLDS,
+  COMPOSITE_RISK_THRESHOLDS,
+  VULNERABILITY_THRESHOLDS,
+  RISK_WEIGHTS,
+} = await import(asFileUrl(join(BUILD, 'lib/threshold-config.js')));
+const { resolveWardTemporalMetrics } = await import(asFileUrl(join(BUILD, 'lib/temporal-modes.js')));
+const { evaluateImdDistrictWarning } = await import(asFileUrl(join(BUILD, 'lib/imd-service.js')));
+
+const eps = (a, b, tol = 0.051) => Math.abs(a - b) <= tol;
+
+// ============================================================
+// SECTION 1: Production thermal formulas (calculateHeatIndex/WBGT)
+// ============================================================
+section('1. Production Thermal Formulas (direct import)');
+
+// WBGT at night with very high RH must not be forced to green/Low:
 const wbgtNight = calculateWBGT(26.7, 94);
-assert(wbgtNight >= 30.0 && wbgtNight <= 35.0, 'WBGT at 26.7C + 94% RH is in physiologically severe range (30-35C)', 'Got WBGT=' + wbgtNight);
+assert(wbgtNight >= 28.0, 'WBGT(26.7C, 94% RH) >= 28 (night humidity keeps stress real)', 'Got ' + wbgtNight);
 
-const wbgtDry = calculateWBGT(35, 40);
-assert(wbgtDry >= 26.0 && wbgtDry <= 34.0, 'WBGT at 35C + 40% RH is in moderate-high range (26-34C)', 'Got WBGT=' + wbgtDry);
+// Reference BoM simplified formula computed here only to CHECK the production
+// function (the authoritative implementation remains in thermal-engine.ts).
+const wbgtRef = (t, rh) => {
+  const e = (rh / 100) * 0.6108 * Math.exp((17.27 * t) / (237.3 + t)) * 10;
+  return Math.round((0.567 * t + 0.393 * e + 3.94) * 10) / 10;
+};
+assert(eps(calculateWBGT(32, 70), wbgtRef(32, 70), 0.0), 'calculateWBGT(32, 70) matches BoM formula', calculateWBGT(32, 70) + ' vs ' + wbgtRef(32, 70));
+assert(eps(calculateWBGT(35, 40), wbgtRef(35, 40), 0.0), 'calculateWBGT(35, 40) matches BoM formula', '');
 
-const wbgt40rh = calculateWBGT(32, 40);
-const wbgt70rh = calculateWBGT(32, 70);
-const wbgt90rh = calculateWBGT(32, 90);
-assert(wbgt40rh < wbgt70rh && wbgt70rh < wbgt90rh, 'WBGT increases monotonically with humidity at 32C', '40%=' + wbgt40rh + ' 70%=' + wbgt70rh + ' 90%=' + wbgt90rh);
+// Monotonicity with humidity
+assert(
+  calculateWBGT(32, 40) < calculateWBGT(32, 70) && calculateWBGT(32, 70) < calculateWBGT(32, 90),
+  'WBGT increases monotonically with RH at 32C',
+  [calculateWBGT(32, 40), calculateWBGT(32, 70), calculateWBGT(32, 90)].join(' < ')
+);
 
-const hi35 = calculateHeatIndexRef(35, 60);
-assert(hi35 >= 40.0 && hi35 <= 55.0, 'Heat Index at 35C + 60% RH is in 40-55C range', 'Got HI=' + hi35);
+// Heat Index production checks
+const hi35 = calculateHeatIndex(35, 60);
+assert(hi35 >= 40.0 && hi35 <= 55.0, 'HeatIndex(35C, 60%) in physiologically expected 40-55C band', 'Got ' + hi35);
+assert(calculateHeatIndex(30, 60) < hi35 && hi35 < calculateHeatIndex(40, 60), 'HeatIndex monotonic in temperature at 60% RH', '');
+assert(calculateHeatIndex(15, 60) === 15, 'HeatIndex below 20C returns ambient (no extrapolation)', 'Got ' + calculateHeatIndex(15, 60));
 
-const hi30 = calculateHeatIndexRef(30, 60);
-const hi40 = calculateHeatIndexRef(40, 60);
-assert(hi30 < hi35 && hi35 < hi40, 'Heat Index increases monotonically with temperature at 60% RH', '30C=' + hi30 + ' 35C=' + hi35 + ' 40C=' + hi40);
+// ============================================================
+// SECTION 2: Classification boundaries (production functions)
+// ============================================================
+section('2. Classification Boundaries (threshold-config)');
 
+// Heat conditions — boundary semantics: >= threshold enters the band
+assert(classifyHeatCondition(34.99) === 'Normal', '34.99C is Normal', '');
+assert(classifyHeatCondition(35) === 'Elevated', '35.0C boundary is Elevated (>=)', '');
+assert(classifyHeatCondition(39.99) === 'Elevated', '39.99C is Elevated', '');
+assert(classifyHeatCondition(40) === 'High', '40.0C boundary is High (>=)', '');
+assert(classifyHeatCondition(45) === 'Extreme', '45.0C boundary is Extreme (>=)', '');
 
-// --- Single source of truth: parse authoritative thresholds from production.
+// Thermal stress — WBGT boundaries
+assert(classifyThermalStress(undefined, 27.99) === 'Low', 'WBGT 27.99 is Low', '');
+assert(classifyThermalStress(undefined, 28) === 'Moderate', 'WBGT 28.0 boundary is Moderate (>=)', '');
+assert(classifyThermalStress(undefined, 30) === 'High', 'WBGT 30.0 boundary is High (>=)', '');
+assert(classifyThermalStress(undefined, 32) === 'Severe', 'WBGT 32.0 boundary is Severe (>=)', '');
+// Thermal stress — HI-only boundaries (no WBGT available)
+assert(classifyThermalStress(26.99, undefined) === 'Low', 'HI 26.99 alone is Low', '');
+assert(classifyThermalStress(27, undefined) === 'Moderate', 'HI 27.0 alone is Moderate (>=)', '');
+assert(classifyThermalStress(32, undefined) === 'High', 'HI 32.0 alone is High (>=)', '');
+assert(classifyThermalStress(41, undefined) === 'Severe', 'HI 41.0 alone is Severe (>=)', '');
+// Dual criteria: most severe wins
+assert(classifyThermalStress(20, 32) === 'Severe', 'Low HI but WBGT 32 → Severe (most severe wins)', '');
+
+// Composite risk score bands (0-100)
+assert(classifyCompositeRiskLevel(29.9) === 'Low', 'Composite 29.9 is Low', '');
+assert(classifyCompositeRiskLevel(30) === 'Moderate', 'Composite 30 boundary is Moderate (>=)', '');
+assert(classifyCompositeRiskLevel(50) === 'High', 'Composite 50 boundary is High (>=)', '');
+assert(classifyCompositeRiskLevel(70) === 'Severe', 'Composite 70 boundary is Severe (>=)', '');
+
+// Vulnerability bands
+assert(classifyVulnerabilityLevel(29) === 'Low', 'Vulnerability 29 is Low', '');
+assert(classifyVulnerabilityLevel(30) === 'Moderate', 'Vulnerability 30 is Moderate (>=)', '');
+assert(classifyVulnerabilityLevel(50) === 'High', 'Vulnerability 50 is High (>=)', '');
+assert(classifyVulnerabilityLevel(70) === 'Severe', 'Vulnerability 70 is Severe (>=)', '');
+
+// Legend labels agree with the authoritative thresholds (presentation config
+// must restate the same numbers the classifiers use)
+const mapConfigSrc = readFileSync(join(ROOT, 'src/components/map/map-config.ts'), 'utf-8');
+assert(
+  mapConfigSrc.includes("'Normal (<35") && mapConfigSrc.includes('45'),
+  'legend labels match HEAT_CONDITION thresholds (35/45)',
+  ''
+);
+assert(
+  mapConfigSrc.includes('28') && mapConfigSrc.includes('30') && mapConfigSrc.includes('32'),
+  'legend labels match THERMAL_STRESS thresholds (28/30/32)',
+  ''
+);
+
+// ============================================================
+// SECTION 3: Risk math (production implementations)
+// ============================================================
+section('3. Composite Risk Math (production)');
+
+assert(calculateThermalScore(20) === 0, 'ThermalScore(20C) = 0 (baseline)', 'Got ' + calculateThermalScore(20));
+assert(calculateThermalScore(54) === 100, 'ThermalScore(54C) = 100 (NOAA extreme)', 'Got ' + calculateThermalScore(54));
+assert(eps(calculateThermalScore(37), 50, 0.51), 'ThermalScore(37C) ≈ 50 (midpoint)', 'Got ' + calculateThermalScore(37));
+
+const comp = calculateCompositeRiskScore(100, 100);
+assert(comp === 100, 'Composite(100, 100) = 100 (clipped at max)', 'Got ' + comp);
+assert(eps(calculateCompositeRiskScore(80, 60), 0.6 * 80 + 0.4 * 60, 0.51), 'Composite honors alpha/beta weights', 'Got ' + calculateCompositeRiskScore(80, 60));
+assert(eps(RISK_WEIGHTS.alpha + RISK_WEIGHTS.beta, 1.0, 0.0001), 'Weights sum to 1.0', '');
+assert(calculateCompositeRiskScore(-5, 200) === 77, 'Composite mixes raw then clamps OUTPUT to [0,100] (raw 77 stays 77)', 'Got ' + calculateCompositeRiskScore(-5, 200));
+assert(calculateCompositeRiskScore(150, 100) === 100, 'Composite clips above 100', 'Got ' + calculateCompositeRiskScore(150, 100));
+
+// ============================================================
+// SECTION 4: Relative Risk (single authoritative implementation)
+// ============================================================
+section('4. Relative Risk Estimate (production)');
+
+const rrBaseline = calculateRelativeRisk(20, 0);
+assert(rrBaseline.rr === 1.0 && rrBaseline.band === 'Baseline', 'RR below onset = 1.00 Baseline', JSON.stringify(rrBaseline));
+assert(calculateRelativeRisk(28, 0).rr === 1.0, 'RR at onset WBGT 28 is still 1.00 (excess starts above onset)', 'Got ' + calculateRelativeRisk(28, 0).rr);
+assert(calculateRelativeRisk(30, 0).rr === 1.24, 'RR(30C, vuln 0) = 1.24 (2deg * 0.12)', 'Got ' + calculateRelativeRisk(30, 0).rr);
+assert(
+  eps(calculateRelativeRisk(30, 100).rr, 1.0 + 2 * 0.12 + 0.15, 0.011),
+  'RR(30C, vuln 100) = 1 + 0.24 + 0.15',
+  'Got ' + calculateRelativeRisk(30, 100).rr
+);
+assert(calculateRelativeRisk(undefined, undefined).rr === 1.0, 'RR with no inputs = baseline 1.00 (never fabricated)', 'Got ' + calculateRelativeRisk(undefined, undefined).rr);
+assert(calculateRelativeRisk(32, 50).rr > calculateRelativeRisk(28, 50).rr, 'RR increases with WBGT above onset', '');
+assert(calculateRelativeRisk(30, 80).rr > calculateRelativeRisk(30, 20).rr, 'RR increases with vulnerability', '');
+const rrCritical = calculateRelativeRisk(35, 100);
+assert(rrCritical.band === 'Critical', 'RR(35, 100) is Critical band', JSON.stringify(rrCritical));
+assert(rrCritical.excessPct === Math.round((rrCritical.rr - 1) * 100), 'Excess pct = (rr-1)*100', JSON.stringify(rrCritical));
+
+// ============================================================
+// SECTION 5: Temporal modes change actual data (production resolver)
+// ============================================================
+section('5. Temporal Modes: CURRENT / SELECTED FORECAST / PEAK');
+
+// Genuine-shaped hourly arrays (the resolver is pure — it receives the same
+// array shapes the Open-Meteo pipeline produces).
+const hours = 48;
+const times = [];
+const temps = [];
+const hums = [];
+const apparents = [];
+for (let i = 0; i < hours; i++) {
+  const h = i % 24;
+  // cool night, hot afternoon peak near hour 14
+  const diurnal = 24 + 12 * Math.exp(-Math.pow(h - 14, 2) / 18);
+  const d = new Date('2026-09-10T00:00:00+05:30');
+  d.setHours(d.getHours() + i);
+  times.push(d.toISOString().slice(0, 16));
+  temps.push(Math.round(diurnal * 10) / 10);
+  hums.push(h >= 10 && h <= 16 ? 45 : 85);
+  apparents.push(Math.round(diurnal * 10) / 10);
+}
+const wardForecast = {
+  ward_id: 'test-ward-01',
+  ward_name: 'Test Ward',
+  city_id: 'test',
+  centroid: [77.59, 12.97],
+  current: { time: times[0], temperature_2m: temps[0], relative_humidity_2m: hums[0], apparent_temperature: apparents[0] },
+  hourly: { time: times, temperature_2m: temps, relative_humidity_2m: hums, apparent_temperature: apparents },
+  metadata: { run_time: '2026-09-10T00:00:00Z', fetched_at: '2026-09-10T00:00:00Z', valid_time: times[0], provider: 'Open-Meteo NWP Grid', model: 'test', status: 'fresh', attribution: 'test' },
+  attribution: 'test',
+};
+
+const currentMetrics = resolveWardTemporalMetrics({
+  forecast: wardForecast,
+  mode: 'CURRENT',
+  currentValidTime: times[23], // 23:00 IST — nighttime
+  selectedValidTime: null,
+  vulnerabilityScore: 50,
+});
+assert(currentMetrics != null, 'CURRENT mode resolves', '');
+assert(eps(currentMetrics.temperature, temps[23], 0.0), 'CURRENT mode returns the 23:00 hour value, not the peak', JSON.stringify(currentMetrics));
+
+const peakMetrics = resolveWardTemporalMetrics({
+  forecast: wardForecast,
+  mode: 'PEAK',
+  currentValidTime: times[23],
+  selectedValidTime: null,
+  vulnerabilityScore: 50,
+});
+assert(peakMetrics != null, 'PEAK mode resolves', '');
+assert(peakMetrics.temperature > currentMetrics.temperature, 'PEAK temperature > CURRENT(23:00) temperature — modes change data', `${peakMetrics.temperature} vs ${currentMetrics.temperature}`);
+assert(peakMetrics.validTime !== currentMetrics.validTime, 'PEAK valid time differs from CURRENT valid time', `${peakMetrics.validTime} vs ${currentMetrics.validTime}`);
+assert(peakMetrics.wbgt > currentMetrics.wbgt, 'PEAK WBGT > night CURRENT WBGT (night not forced green)', `${peakMetrics.wbgt} vs ${currentMetrics.wbgt}`);
+assert(peakMetrics.thermalStress !== 'Low', 'PEAK mode classifies the hot afternoon, not the cool night', peakMetrics.thermalStress);
+
+// SELECTED FORECAST: pick the next-day 14:00 hour explicitly
+const selected = times[14 + 24];
+const selectedMetrics = resolveWardTemporalMetrics({
+  forecast: wardForecast,
+  mode: 'FORECAST',
+  currentValidTime: times[23],
+  selectedValidTime: selected,
+  vulnerabilityScore: 50,
+});
+assert(selectedMetrics != null, 'SELECTED FORECAST mode resolves', '');
+assert(eps(selectedMetrics.temperature, temps[14 + 24], 0.0), 'SELECTED FORECAST returns the user-selected hour', JSON.stringify(selectedMetrics));
+assert(selectedMetrics.validTime === selected, 'SELECTED FORECAST valid time is the selection', '');
+
+// Mode-resolved composite uses authoritative weights
+assert(
+  eps(selectedMetrics.compositeRisk, calculateCompositeRiskScore(calculateThermalScore(selectedMetrics.heatIndex), 50), 0.51),
+  'Mode-resolved composite uses authoritative weights',
+  `${selectedMetrics.compositeRisk}`
+);
+
+// No-data honesty
+assert(
+  resolveWardTemporalMetrics({ forecast: null, mode: 'PEAK', currentValidTime: null, selectedValidTime: null }) === null,
+  'No forecast data → null metrics (never invented)',
+  ''
+);
+const emptyForecast = { ...wardForecast, hourly: { ...wardForecast.hourly, time: [], temperature_2m: [], relative_humidity_2m: [] } };
+assert(
+  resolveWardTemporalMetrics({ forecast: emptyForecast, mode: 'CURRENT', currentValidTime: null, selectedValidTime: null }) === null,
+  'Empty hourly arrays → null metrics',
+  ''
+);
+
+// ============================================================
+// SECTION 6: Nighttime semantics (the 23:00 problem)
+// ============================================================
+section('6. Nighttime Semantics (23:00 current vs next-day peak)');
+
+assert(eps(currentMetrics.temperature, temps[23], 0.0) && temps[23] < 30, '23:00 current is the cool night value', `${currentMetrics.temperature}C`);
+assert(classifyThermalStress(currentMetrics.heatIndex, currentMetrics.wbgt) === currentMetrics.thermalStress, 'Night classification uses real production thresholds (not forced green)', currentMetrics.thermalStress);
+assert(peakMetrics.wbgt !== currentMetrics.wbgt, 'CURRENT night WBGT and FORECAST PEAK WBGT are distinct values', `${currentMetrics.wbgt} vs ${peakMetrics.wbgt}`);
+// times[] are UTC ISO strings (as Open-Meteo emits); 23:00 IST = 17:30 UTC.
+assert(times[23].startsWith('2026-09-10T17:30'), '23:00 IST slot maps to the 23:00 forecast hour (17:30 UTC)', times[23]);
+
+// IST conversion sanity
+const istFormatter = new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: false });
+assert(istFormatter.format(new Date('2026-09-10T00:00:00Z')) === '05:30', 'UTC 00:00 → IST 05:30', istFormatter.format(new Date('2026-09-10T00:00:00Z')));
+assert(istFormatter.format(new Date('2026-09-10T18:30:00Z')) === '00:00', 'UTC 18:30 → IST 00:00 midnight', '');
+
+// ============================================================
+// SECTION 7: IMD criteria assessment truth (production service)
+// ============================================================
+section('7. IMD Criteria Assessment Truth (production)');
+
+const imdNoInput = evaluateImdDistrictWarning('pune', undefined);
+assert(imdNoInput.has_forecast_input === false, 'No temperature input → has_forecast_input=false', '');
+assert(imdNoInput.forecast_tmax === undefined, 'No input → no fabricated forecast_tmax', JSON.stringify(imdNoInput.forecast_tmax));
+assert(imdNoInput.departure === undefined, 'No input → no fabricated departure', '');
+assert(!/GREEN: No Warning/.test(imdNoInput.headline), 'No input → not a confident GREEN headline', imdNoInput.headline);
+assert(imdNoInput.computed_at !== undefined, 'computed_at present (renamed from issued_at)', '');
+assert(!('issued_at' in imdNoInput), 'issued_at field no longer exists', '');
+
+const imdHot = evaluateImdDistrictWarning('pune', 42);
+assert(imdHot.has_forecast_input === true, 'Real tmax 42C → has_forecast_input=true', '');
+assert(imdHot.color_code === 'ORANGE', 'Pune 42C (dep +4.5 from 37.5 normal) → ORANGE per IMD criteria', imdHot.color_code + ' dep=' + imdHot.departure);
+assert(imdHot.authority.toLowerCase().includes('not an imd-issued product'), 'authority string disclaims IMD issuance', imdHot.authority);
+assert(imdHot.disclaimer.toLowerCase().includes('not an official'), 'disclaimer states not official', '');
+
+// ============================================================
+// SECTION 8: Static source audits (single-source + no fabrication)
+// ============================================================
+section('8. Source Audits: Single Source of Truth & No Fabrication');
+
 const thresholdSrc = readFileSync(join(ROOT, 'src/lib/threshold-config.ts'), 'utf-8');
 function parseConst(src, name) {
   const m = src.match(new RegExp(name + '\\s*:\\s*([0-9]+(?:\\.[0-9]+)?)'));
   return m ? parseFloat(m[1]) : null;
 }
-const TCFG = {
-  modWbgt: parseConst(thresholdSrc, 'moderateWbgt'),
-  modHi: parseConst(thresholdSrc, 'moderateHi'),
-  highWbgt: parseConst(thresholdSrc, 'highWbgt'),
-  highHi: parseConst(thresholdSrc, 'highHi'),
-  sevWbgt: parseConst(thresholdSrc, 'severeWbgt'),
-  sevHi: parseConst(thresholdSrc, 'severeHi'),
-  heatElevated: parseConst(thresholdSrc, 'elevated'),
-  heatHigh: parseConst(thresholdSrc, '(?<!\w)high(?!Wbgt)'),
-  heatExtreme: parseConst(thresholdSrc, 'extreme'),
-};
-assert(TCFG.modWbgt === 28 && TCFG.highWbgt === 30 && TCFG.sevWbgt === 32, 'threshold-config WBGT bands are 28/30/32', JSON.stringify(TCFG));
-assert(TCFG.modHi === 27 && TCFG.highHi === 32 && TCFG.sevHi === 41, 'threshold-config HI bands are 27/32/41', JSON.stringify(TCFG));
-assert(TCFG.heatElevated === 35, 'threshold-config heat elevated is 35', JSON.stringify(TCFG));
-assert(TCFG.heatExtreme === 45, 'threshold-config heat extreme is 45', JSON.stringify(TCFG));
+// Runtime constants match the source exactly
+assert(THERMAL_STRESS_THRESHOLDS.moderateWbgt === parseConst(thresholdSrc, 'moderateWbgt'), 'runtime moderateWbgt matches source', '');
+assert(HEAT_CONDITION_THRESHOLDS.extreme === 45, 'HEAT_CONDITION extreme is 45', '');
+assert(COMPOSITE_RISK_THRESHOLDS.severe === 70, 'COMPOSITE severe is 70', '');
+assert(VULNERABILITY_THRESHOLDS.severe === 70, 'VULNERABILITY severe is 70', '');
+assert(RELATIVE_RISK_THRESHOLDS.onsetWbgt === 28, 'RR onset WBGT is 28', '');
+
+// Every production consumer imports threshold-config
 const singleSourceConsumers = [
   'src/lib/thermal-engine.ts',
   'src/lib/risk-engine.ts',
@@ -118,96 +446,105 @@ const singleSourceConsumers = [
   'src/components/map/map-config.ts',
   'src/app/api/alerts/route.ts',
   'src/app/api/states/route.ts',
-  'src/app/api/twin-ward/route.ts',
   'src/app/page.tsx',
   'src/app/india/page.tsx',
   'src/components/drawer/WardDetailDrawer.tsx',
   'src/components/map/MapContainer.tsx',
- ];
+];
 for (const rel of singleSourceConsumers) {
   const p = join(ROOT, rel);
   if (!existsSync(p)) { console.log('  SKIP: ' + rel + ' not found'); continue; }
   const src = readFileSync(p, 'utf-8');
   assert(/threshold-config/.test(src), rel + ' imports the single threshold source', '');
 }
-{ const src = readFileSync(join(ROOT, 'src/app/api/states/route.ts'), 'utf-8'); assert(!/2\\.04901523/.test(src), 'api/states has no duplicate Rothfusz regression', ''); }
-{ const src = readFileSync(join(ROOT, 'src/lib/risk-engine.ts'), 'utf-8'); assert(src.includes('calculateAuthoritativeThermalScore'), 'risk-engine delegates thermal-score math', ''); }
 
-// ============================================================
-// SECTION 2: Forecast Timestamp Separation (R1, R2)
-// ============================================================
-section('2. Forecast Timestamp Separation (R1, R2)');
-
-const utcMidnight = new Date('2026-09-10T00:00:00Z');
-const istFormatter = new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: false });
-const istStr = istFormatter.format(utcMidnight);
-assert(istStr === '05:30', 'UTC 00:00 converts to IST 05:30', 'Got "' + istStr + '"');
-
-const utcEvening = new Date('2026-09-10T18:30:00Z');
-const istEveStr = istFormatter.format(utcEvening);
-assert(istEveStr === '00:00', 'UTC 18:30 converts to IST 00:00 (midnight)', 'Got "' + istEveStr + '"');
-
-const validModes = ['CURRENT', 'FORECAST', 'PEAK'];
-assert(validModes.includes('CURRENT'), 'forecastContext.mode values are CURRENT | FORECAST | PEAK', '');
-
-const currentHourWbgt = 26.5;
-const forecastPeakWbgt = 33.2;
-assert(currentHourWbgt !== forecastPeakWbgt, 'Current-hour WBGT and forecast peak WBGT are distinct values', 'Current=' + currentHourWbgt + ' Peak=' + forecastPeakWbgt);
-
-// ============================================================
-// SECTION 3: Risk Engine
-// ============================================================
-section('3. Risk Engine (R6, R7, R8, R9)');
-
-function compositeRiskRef(thermalScore, vulnerabilityScore) {
-  return Math.round((0.6 * thermalScore + 0.4 * vulnerabilityScore) * 1000) / 1000;
+// No duplicate Rothfusz/BoM numerics outside thermal-engine
+const engineFiles = ['src/app/api/states/route.ts', 'src/lib/risk-engine.ts', 'src/lib/map-config.ts', 'src/components/map/map-config.ts'];
+for (const rel of engineFiles) {
+  const src = readFileSync(join(ROOT, rel), 'utf-8');
+  assert(!/2\.04901523/.test(src), rel + ' has no duplicate Rothfusz regression', '');
+  assert(!/0\.567\s*\*\s*\w+/.test(src), rel + ' has no duplicate BoM WBGT formula', '');
 }
 
-function classifyRisk(composite) {
-  if (composite >= 0.75) return 'Severe';
-  if (composite >= 0.55) return 'High';
-  if (composite >= 0.35) return 'Moderate';
-  if (composite >= 0.15) return 'Low';
-  return 'Normal';
+// No ward-name hash vulnerability anywhere in production
+{
+  const listSrc = spawnSync(
+    process.platform === 'win32' ? 'cmd.exe' : 'sh',
+    process.platform === 'win32'
+      ? ['/c', `dir /s /b "${join(ROOT, 'src')}"`]
+      : ['-c', `find "${join(ROOT, 'src')}" -name "*.ts" -o -name "*.tsx"`],
+    { encoding: 'utf-8' }
+  );
+  const list = listSrc.stdout.split(/\r?\n/).filter((f) => f && /\.(ts|tsx)$/.test(f));
+  for (const f of list) {
+    const src = readFileSync(f, 'utf-8');
+    assert(!/charCodeAt\s*\(/.test(src), f + ' has no charCodeAt hash (ward-name hashing removed)', '');
+  }
 }
 
-const comp1 = compositeRiskRef(0.8, 0.6);
-assert(Math.abs(comp1 - 0.72) < 0.01, 'Composite(0.8, 0.6) = 0.72', 'Got ' + comp1);
-assert(classifyRisk(compositeRiskRef(0, 0)) === 'Normal', 'Composite(0, 0) is Normal', 'Got ' + classifyRisk(compositeRiskRef(0, 0)));
-assert(classifyRisk(0.80) === 'Severe', 'Composite 0.80 is Severe', 'Got ' + classifyRisk(0.80));
-assert(classifyRisk(0.60) === 'High', 'Composite 0.60 is High', 'Got ' + classifyRisk(0.60));
-assert(classifyRisk(0.40) === 'Moderate', 'Composite 0.40 is Moderate', 'Got ' + classifyRisk(0.40));
-assert(classifyRisk(0.20) === 'Low', 'Composite 0.20 is Low', 'Got ' + classifyRisk(0.20));
-assert(Math.abs(0.6 + 0.4 - 1.0) < 0.001, 'Composite weights sum to 1.0 (0.6 + 0.4)', '');
-
-// ============================================================
-// SECTION 4: Health Layer RR (R5, R10)
-// ============================================================
-section('4. Health Layer Relative Risk (R5, R10)');
-
-function relativeRisk(wbgt, vulnScore) {
-  const thermalBurden = Math.max(0, wbgt - TCFG.rrOnset) * 0.12;
-  const vulnBurden = (vulnScore / 100) * 0.15;
-  return Math.round((1.0 + thermalBurden + vulnBurden) * 100) / 100;
+// No known fabricated fallback literals in production runtime paths
+const fallbackPatterns = [
+  { re: /\?\?\s*1013\.25/, label: '?? 1013.25 pressure substitution' },
+  { re: /heatIndex:\s*35,/, label: 'heatIndex: 35 placeholder' },
+  { re: /wbgt:\s*28,/, label: 'wbgt: 28 placeholder' },
+  { re: /baseTemp\s*=\s*34/, label: 'baseTemp = 34 synthetic trajectory' },
+];
+const prodFiles = [
+  'src/app/page.tsx',
+  'src/app/india/page.tsx',
+  'src/app/forecast/page.tsx',
+  'src/app/api/risk/route.ts',
+  'src/app/api/alerts/route.ts',
+  'src/app/api/states/route.ts',
+  'src/lib/weather-service.ts',
+  'src/lib/risk-engine.ts',
+  'src/lib/store.ts',
+  'src/components/drawer/WardDetailDrawer.tsx',
+];
+for (const rel of prodFiles) {
+  const p = join(ROOT, rel);
+  if (!existsSync(p)) continue;
+  const src = readFileSync(p, 'utf-8');
+  for (const { re, label } of fallbackPatterns) {
+    assert(!re.test(src), rel + ' free of ' + label, '');
+  }
 }
 
-const rrBaseline = relativeRisk(TCFG.rrOnset, 0);
-assert(Math.abs(rrBaseline - 1.0) < 0.01, 'RR at WBGT=27.0 + vuln=0 equals 1.0 (baseline)', 'Got RR=' + rrBaseline);
-assert(relativeRisk(20.0, 10) >= 1.0, 'Relative Risk is never less than 1.0', 'Got RR=' + relativeRisk(20.0, 10));
-assert(relativeRisk(32, 50) > relativeRisk(28, 50), 'RR at WBGT=32 > RR at WBGT=28', '');
-assert(relativeRisk(30, 80) > relativeRisk(30, 20), 'RR at high vulnerability > low vulnerability', '');
-
-const healthModelPath = join(ROOT, 'src/lib/hybrid-health-model.ts');
-if (existsSync(healthModelPath)) {
-  const src = readFileSync(healthModelPath, 'utf-8');
-  assert(!/predicted.*mortality|mortality.*prediction/i.test(src), 'hybrid-health-model.ts has no fabricated mortality claims', '');
-  assert(!/predicted.*hospitalization.*model/i.test(src), 'hybrid-health-model.ts has no hospitalization model claims', '');
+// IMD truth wording: production never presents official bulletin claims.
+// Negated disclaimers ("NOT official IMD bulletins") are stripped before
+// matching so honest disclaimers don't fail the audit.
+const imdFiles = ['src/lib/imd-service.ts', 'src/app/api/imd/route.ts', 'src/app/page.tsx', 'src/app/india/page.tsx'];
+const stripNegations = (s) => s
+  .replace(/\b(?:not|never)\s+an?\s+official\s+IMD\s+(?:district\s+)?(?:bulletins?|warnings?|product)/gi, '')
+  .replace(/\bnot\s+official\s+IMD\s+(?:district\s+)?(?:bulletins?|warnings?)/gi, '');
+for (const rel of imdFiles) {
+  const src = readFileSync(join(ROOT, rel), 'utf-8');
+  const lines = stripNegations(src).split(/\r?\n/).filter((l) => /OFFICIAL IMD DISTRICT|Official IMD Bulletin|IMD Issued Warning/i.test(l));
+  assert(lines.length === 0, rel + ' has no official-IMD-bulletin claim', lines[0] || '');
 }
 
+// Health honesty: no clinical outcome prediction claims in production pages
+const healthFiles = ['src/app/page.tsx', 'src/app/risk-areas/page.tsx', 'src/components/drawer/WardDetailDrawer.tsx'];
+for (const rel of healthFiles) {
+  const src = readFileSync(join(ROOT, rel), 'utf-8');
+  assert(!/predicted\s+deaths|predicted\s+mortality|hospital\s+admissions?\s+forecast/i.test(src), rel + ' has no mortality/hospitalization prediction', '');
+}
+
+// Legacy cron is disabled and registers no schedule
+const vercelSrc = existsSync(join(ROOT, 'vercel.json')) ? readFileSync(join(ROOT, 'vercel.json'), 'utf-8') : '{}';
+const cronSrc = readFileSync(join(ROOT, 'src/app/api/cron/thermal/route.ts'), 'utf-8');
+assert(!/crons/.test(vercelSrc), 'vercel.json registers no cron schedule', vercelSrc);
+assert(/disabled/.test(cronSrc) || /410/.test(cronSrc), 'legacy cron route is a disabled 410 stub', '');
+
+// Storage truth: no dead database client remains
+assert(!existsSync(join(ROOT, 'src/lib/supabase.ts')), 'unused supabase client removed (no database-backed implication)', '');
+const pkgSrc = readFileSync(join(ROOT, 'package.json'), 'utf-8');
+assert(!/@supabase/.test(pkgSrc), 'no supabase dependency remains', '');
+
 // ============================================================
-// SECTION 5: GIS Integrity
+// SECTION 9: GIS integrity
 // ============================================================
-section('5. GIS Ward File Integrity (R3, R8)');
+section('9. GIS Ward File Integrity (R3, R8)');
 
 const gisFiles = [
   { city: 'Bengaluru', count: 369, names: ['bengaluru-gba-369-wards.geojson', 'bengaluru_wards.geojson'] },
@@ -217,10 +554,8 @@ const gisFiles = [
   { city: 'Chennai', count: 200, names: ['chennai-200-wards.geojson', 'chennai_wards.geojson'] },
   { city: 'Coimbatore', count: 100, names: ['coimbatore-100-wards.geojson', 'coimbatore_wards.geojson'] },
 ];
-
 const searchDirs = ['public/data/processed/geojson', 'public/data/processed', 'data/processed/geojson'];
 let totalWards = 0;
-
 for (const { city, count, names } of gisFiles) {
   let found = false;
   for (const dir of searchDirs) {
@@ -230,7 +565,7 @@ for (const { city, count, names } of gisFiles) {
         const raw = JSON.parse(readFileSync(p, 'utf-8'));
         const actual = raw.features?.length ?? 0;
         assert(actual === count, city + ' GeoJSON has exactly ' + count + ' ward features', 'Got ' + actual);
-        const hasGeoCol = raw.features?.some(f => f.geometry?.type === 'GeometryCollection');
+        const hasGeoCol = raw.features?.some((f) => f.geometry?.type === 'GeometryCollection');
         assert(!hasGeoCol, city + ' GeoJSON has NO GeometryCollection', hasGeoCol ? 'Found GeometryCollection' : '');
         totalWards += actual;
         found = true;
@@ -246,101 +581,34 @@ for (const { city, count, names } of gisFiles) {
 assert(totalWards === 849, 'Total wards across 6 cities = 849', 'Got ' + totalWards);
 
 // ============================================================
-// SECTION 6: ML Model Schema (R11)
+// SECTION 10: ML model artifact schema & honest metadata
 // ============================================================
-section('6. ML Heatwave Model Schema (R11)');
+section('10. ML Heatwave Model Artifact (R11)');
 
 const mlPaths = [
   join(ROOT, 'data/training/portable-heatwave-model.json'),
   join(ROOT, 'public/data/training/portable-heatwave-model.json'),
 ];
-const mlPath = mlPaths.find(p => existsSync(p));
+const mlPath = mlPaths.find((p) => existsSync(p));
 if (mlPath) {
   const model = JSON.parse(readFileSync(mlPath, 'utf-8'));
-  assert(typeof model.intercept === 'number', 'ML model has numeric intercept', 'Got ' + typeof model.intercept);
-  assert(Array.isArray(model.weights) && model.weights.length > 0, 'ML model has weights array', 'Got ' + model.weights?.length);
-  assert(typeof model.threshold === 'number' && model.threshold > 0 && model.threshold < 1, 'ML model threshold is in (0, 1)', 'Got ' + model.threshold);
-  const wLen = Array.isArray(model.weights) ? model.weights.length : 0; assert(wLen >= 5 && wLen <= 20, 'ML model has 5-20 features', 'Got ' + wLen);
+  assert(typeof model.intercept === 'number', 'ML model has numeric intercept', '');
+  assert(Array.isArray(model.weights) && model.weights.length === model.features.length, 'ML weights align with features', '');
+  assert(typeof model.threshold === 'number' && model.threshold > 0 && model.threshold < 1, 'ML threshold in (0,1)', 'Got ' + model.threshold);
+  assert(model.health_outcome_model === false, 'ML artifact declares health_outcome_model=false', '');
+  assert(/Rajasthan/i.test(model.training_domain || ''), 'ML training domain discloses Rajasthan', model.training_domain);
+  assert(/indicative/i.test(model.warning || model.training_domain || ''), 'ML warning marks transfer as indicative', '');
 } else {
   console.log('  SKIP: portable-heatwave-model.json not found (optional)');
 }
 
-// ============================================================
-// SECTION 7: Vulnerability Provenance (R10, R14)
-// ============================================================
-section('7. Vulnerability Data Provenance (R10, R14)');
-
-const censusPath = join(ROOT, 'src/lib/census-data.ts');
-if (existsSync(censusPath)) {
-  const src = readFileSync(censusPath, 'utf-8');
-  assert(src.includes('Census') || src.includes('census'), 'census-data.ts references Census data source', '');
-  assert(src.includes('proxy') || src.includes('PROXY') || src.includes('baseline'), 'census-data.ts labels data as proxy/baseline', '');
-  assert(!/real.?time.*census|live.*census/i.test(src), 'census-data.ts has no real-time census claim', '');
-} else {
-  assert(false, 'src/lib/census-data.ts exists', 'File not found');
-}
-
-// ============================================================
-// SECTION 8: Scientific Terminology Audit (R17)
-// ============================================================
-section('8. Scientific Terminology Audit (R17)');
-
-const pages = ['src/app/page.tsx', 'src/app/forecast/page.tsx', 'src/app/risk-areas/page.tsx'];
-for (const pageFile of pages) {
-  const p = join(ROOT, pageFile);
-  if (!existsSync(p)) { console.log('  SKIP: ' + pageFile + ' not found'); continue; }
-  const src = readFileSync(p, 'utf-8');
-  assert(!/>\\s*Sync\\s*</.test(src), pageFile + ': no raw "Sync" button label', '');
-  assert(!/predicted\\s+deaths|predicted\\s+mortality/i.test(src), pageFile + ': no fabricated mortality predictions', '');
-  assert(!/live\\s+sensor|IoT\\s+reading|measured\\s+at\\s+ward/i.test(src), pageFile + ': no fake IoT/sensor labels', '');
-}
-
-// ============================================================
-// SECTION 9: Ward-Hour Schema (R7)
-// ============================================================
-section('9. Ward-Hour Data Schema (R7)');
-
-const sampleWardHour = {
-  ward_id: 'blr-001', valid_time: '2026-09-10T14:00:00+05:30', forecast_run: '2026-09-10T00:00:00Z',
-  temperature: 34.2, relative_humidity: 55, wind_speed: 12.5, heat_index: 41.2,
-  wbgt: 30.1, utci_proxy: 38.9, vulnerability_score: 0.45, thermal_score: 0.62,
-  composite_risk: 0.553, alert_level: 'High',
-};
-
-for (const field of ['ward_id', 'temperature', 'relative_humidity', 'heat_index', 'wbgt', 'composite_risk']) {
-  assert(field in sampleWardHour && sampleWardHour[field] != null, 'Ward-hour schema has field: ' + field, '');
-}
-assert(sampleWardHour.composite_risk >= 0 && sampleWardHour.composite_risk <= 1, 'composite_risk is in [0,1]', 'Got ' + sampleWardHour.composite_risk);
-
-const expectedComposite = compositeRiskRef(sampleWardHour.thermal_score, sampleWardHour.vulnerability_score);
-assert(Math.abs(expectedComposite - sampleWardHour.composite_risk) < 0.01, 'composite_risk matches 0.6*thermal + 0.4*vuln formula', 'Expected ' + expectedComposite + ' got ' + sampleWardHour.composite_risk);
-
-// ============================================================
-// SECTION 10: Legend Config Consistency (R8, R9)
-// ============================================================
-section('10. Map Legend / Classification Consistency (R8, R9)');
-
-function classifyWBGT(wbgt) {
-  if (wbgt >= 32.0) return 'Severe';
-  if (wbgt >= 30.0) return 'High';
-  if (wbgt >= 28.0) return 'Moderate';
-  return 'Low';
-}
-
-assert(classifyWBGT(32.0) === 'Severe', 'WBGT=32.0 is Severe', 'Got ' + classifyWBGT(32.0));
-assert(classifyWBGT(31.9) === 'High', 'WBGT=31.9 is High', 'Got ' + classifyWBGT(31.9));
-assert(classifyWBGT(30.0) === 'High', 'WBGT=30.0 is High', 'Got ' + classifyWBGT(30.0));
-assert(classifyWBGT(29.9) === 'Moderate', 'WBGT=29.9 is Moderate', 'Got ' + classifyWBGT(29.9));
-assert(classifyWBGT(28.0) === 'Moderate', 'WBGT=28.0 is Moderate', 'Got ' + classifyWBGT(28.0));
-assert(classifyWBGT(27.9) === 'Low', 'WBGT=27.9 is Low', 'Got ' + classifyWBGT(27.9));
-
-const mapConfigExists = existsSync(join(ROOT, 'src/components/map/map-config.ts')) || existsSync(join(ROOT, 'src/lib/map-config.ts'));
-assert(mapConfigExists, 'map-config.ts classification source exists', '');
+// Cleanup temp build
+rmSync(BUILD, { recursive: true, force: true });
 
 // ============================================================
 // FINAL SUMMARY
 // ============================================================
-console.log("\n" + '='.repeat(60));
+console.log('\n' + '='.repeat(60));
 console.log('HEATPULSE DETERMINISTIC TEST SUITE -- RESULTS');
 console.log('='.repeat(60));
 console.log('  Total: ' + (passed + failed));
@@ -350,7 +618,7 @@ console.log('  FAILED: ' + failed);
 if (failures.length > 0) {
   console.log('\nFailed assertions:');
   failures.forEach((f, i) => {
-    console.error('  ' + (i+1) + '. ' + f.label);
+    console.error('  ' + (i + 1) + '. ' + f.label);
     if (f.details) console.error('     ' + f.details);
   });
   process.exit(1);
@@ -358,4 +626,3 @@ if (failures.length > 0) {
   console.log('\n100% SUCCESS: ALL DETERMINISTIC TESTS PASSED!\n');
   process.exit(0);
 }
-

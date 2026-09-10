@@ -369,9 +369,12 @@ export const heatPulseActions = {
         (imdData?.warning as ImdDistrictWarning | undefined) ||
         null;
       if (!imdWarning) {
-        const peakTemp = wardRisks.length > 0
-          ? Math.max(...wardRisks.map((w) => w.currentTemp || 0))
-          : undefined;
+        // Local fallback evaluation: only supply a temperature when ward
+        // telemetry genuinely exists — never a fabricated 0/35 stand-in.
+        const temps = wardRisks
+          .map((w) => w.currentTemp)
+          .filter((t): t is number => typeof t === 'number' && Number.isFinite(t));
+        const peakTemp = temps.length > 0 ? Math.max(...temps) : undefined;
         imdWarning = evaluateImdDistrictWarning(cityId, peakTemp);
       }
 

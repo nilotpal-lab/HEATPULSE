@@ -13,7 +13,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCityForecast, getWardForecast, WeatherUnavailableError } from '@/lib/weather-service';
 import {
   assessWardRisk,
-  calculateWardRisk,
   getWardVulnerability,
   WARD_POINTS,
 } from '@/lib/risk-engine';
@@ -93,15 +92,19 @@ export async function GET(request: NextRequest) {
           status,
         });
       } catch (err) {
-        // Fallback for Pune legacy ward names if not found by id
+        // A Pune ward name that did not resolve in the live per-ward NWP
+        // pipeline must NOT be answered with invented thermal values.
+        // Return an explicit unavailable response instead of the legacy
+        // HI=35 / WBGT=28 placeholder.
         if (cityParam === 'pune' && WARD_POINTS[wardParam]) {
-          const point = WARD_POINTS[wardParam];
-          const legacyFallback = calculateWardRisk(wardParam, point.lon, point.lat, {
-            heatIndex: 35,
-            wbgt: 28,
-            riskLevel: 'moderate',
-          });
-          return NextResponse.json(legacyFallback);
+          return NextResponse.json(
+            {
+              error: `Ward forecast unavailable for "${wardParam}" — no live ward-centroid NWP data. No placeholder values are served.`,
+              status: 'unavailable',
+              ward: wardParam,
+            },
+            { status: 503 }
+          );
         }
         throw err;
       }

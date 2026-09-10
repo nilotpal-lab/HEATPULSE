@@ -282,7 +282,7 @@ export function assessWardRisk(params: {
     recommendations.push('Prioritize high-vulnerability informal settlements and elderly outreach.');
   }
   if (vulnerability.green_space_pct !== undefined && vulnerability.green_space_pct < 6) {
-    recommendations.push('Low vegetation cover intensifies microclimate urban heat island.');
+    recommendations.push('Low vegetation cover intensifies local urban heat island exposure.');
   }
   if (recommendations.length === 0) {
     recommendations.push('Conditions within normal parameters. Continue standard monitoring.');

@@ -389,9 +389,12 @@ export function createNationalStatesLayer(
         // Monitored states: thematic fills (~0.50 opacity) with high-visibility 2.0px stroke matching classification
         strokeWidth = 2.0;
         if (activeLayer === 'heat_conditions') {
+          // Classification delegated to threshold-config (single source) —
+          // the previous inline 54/41/32 ladder disagreed with the
+          // authoritative 45/40/35 bands at every boundary.
           let cond = metric.heatCondition;
-          if (!cond && metric.temperature) {
-            cond = metric.temperature >= 54 ? 'Extreme' : metric.temperature >= 41 ? 'High' : metric.temperature >= 32 ? 'Elevated' : 'Normal';
+          if (!cond && metric.temperature != null) {
+            cond = classifyHeatCondition(metric.temperature);
           }
           if (cond === 'High' || cond === 'Extreme') {
             fillColor = 'rgba(249, 115, 22, 0.50)';
@@ -404,9 +407,10 @@ export function createNationalStatesLayer(
             strokeColor = '#2563eb';
           }
         } else if (activeLayer === 'thermal_stress') {
+          // Delegated to threshold-config — no inline band duplication.
           let stress = metric.thermalStress;
-          if (!stress && metric.wbgt) {
-            stress = metric.wbgt > 32 ? 'Severe' : metric.wbgt >= 30 ? 'High' : metric.wbgt >= 28 ? 'Moderate' : 'Low';
+          if (!stress && metric.wbgt != null) {
+            stress = classifyThermalStress(undefined, metric.wbgt);
           }
           if (stress === 'Severe') {
             fillColor = 'rgba(153, 27, 27, 0.55)';

@@ -2,7 +2,7 @@
  * HeatPulse — Pan-India State Telemetry API Route
  * GET /api/states
  *
- * Fetches real-time NWP (Open-Meteo) weather data for all 36 Indian State &
+ * Fetches current-hour NWP (Open-Meteo) weather data for all 36 Indian State &
  * UT capitals and computes thermal stress metrics for each state.
  *
  * Response shape:
@@ -181,9 +181,19 @@ async function fetchAllStateMetrics(): Promise<Record<string, StateThermalData>>
       idx = closestIdx;
     }
 
-    const tempC = raw.hourly.temperature_2m[idx] ?? 30;
-    const rh = raw.hourly.relative_humidity_2m[idx] ?? 50;
-    const apparentTempC = raw.hourly.apparent_temperature[idx] ?? tempC;
+    // A missing hourly slot for this capital means no genuine reading — skip
+    // the state entirely rather than substituting an invented 30°C / 50% value.
+    const tempSlot = raw.hourly.temperature_2m[idx];
+    const rhSlot = raw.hourly.relative_humidity_2m[idx];
+    const apparentSlot = raw.hourly.apparent_temperature[idx];
+    if (typeof tempSlot !== 'number' || !Number.isFinite(tempSlot) ||
+        typeof rhSlot !== 'number' || !Number.isFinite(rhSlot)) {
+      continue;
+    }
+
+    const tempC = tempSlot;
+    const rh = rhSlot;
+    const apparentTempC = typeof apparentSlot === 'number' && Number.isFinite(apparentSlot) ? apparentSlot : tempC;
 
     const hi = computeStateHeatIndex(tempC, rh);
     const wbgt = computeStateWbgt(tempC, rh);

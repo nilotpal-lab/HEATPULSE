@@ -246,12 +246,14 @@ export default function HowItWorksPage() {
             <div className="border border-zinc-200 rounded-xl p-4 space-y-2 bg-zinc-50/50">
               <div className="font-bold text-zinc-900 text-sm flex items-center gap-2">
                 <Layers className="w-4 h-4 text-emerald-600" />
-                <span>ISRO NRSC Bhuvan WMS</span>
+                <span>ISRO NRSC Bhuvan WMS (selectable basemap)</span>
               </div>
               <p className="text-zinc-600 leading-relaxed">
-                Primary spatial basemap rendered via ISRO National Remote Sensing Centre (NRSC) Bhuvan
-                WMS (<code className="bg-zinc-100 px-1 rounded font-mono text-[11px]">sisdp_base:sisdp_basemap</code> for Pan-India, with regional LULC 1:50K layers per city) with
-                automatic fallback to OpenStreetMap (OSM) on network timeout.
+                The map opens on the street basemap (OpenStreetMap) by default. ISRO National Remote
+                Sensing Centre (NRSC) Bhuvan WMS
+                (<code className="bg-zinc-100 px-1 rounded font-mono text-[11px]">sisdp_base:sisdp_basemap</code> for
+                Pan-India, with regional LULC 1:50K layers per city) is available as a selectable basemap
+                alongside high-resolution satellite imagery. Bhuvan attribution is preserved on every render.
               </p>
               <div className="text-[11px] font-mono text-zinc-500 pt-1 border-t border-zinc-200">
                 Spatial Standard: RFC 7946 EPSG:4326
@@ -261,15 +263,16 @@ export default function HowItWorksPage() {
             <div className="border border-zinc-200 rounded-xl p-4 space-y-2 bg-zinc-50/50">
               <div className="font-bold text-zinc-900 text-sm flex items-center gap-2">
                 <ShieldCheck className="w-4 h-4 text-blue-600" />
-                <span>IMD District Reference</span>
+                <span>IMD Criteria Assessment (computed locally)</span>
               </div>
               <p className="text-zinc-600 leading-relaxed">
-                District-scale meteorological reference warnings issued by the India Meteorological
-                Department (IMD) / MoES. Segregated from localized ward thermal advisories to avoid
-                attributing district bulletins to individual municipal boundaries.
+                HeatPulse applies the India Meteorological Department&apos;s (IMD) published heat-wave
+                criteria to locally-fetched NWP forecast data and evaluates the resulting district color
+                code itself. It does <strong>not</strong> fetch or relay IMD / MoES bulletins — for
+                official warnings, refer to IMD / MoES channels directly.
               </p>
               <div className="text-[11px] font-mono text-zinc-500 pt-1 border-t border-zinc-200">
-                Scope: District Climatological Departure
+                Scope: District Climatological Departure · Not an official IMD product
               </div>
             </div>
           </div>
@@ -405,13 +408,14 @@ export default function HowItWorksPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-1">
               <div className="bg-white/90 rounded-lg p-3 border border-amber-100 space-y-1.5">
                 <strong className="text-zinc-900 font-semibold block">
-                  1. ISRO Bhuvan Pan-India Basemap & Regional LULC
+                  1. Selectable ISRO Bhuvan Pan-India Basemap & Regional LULC
                 </strong>
                 <p className="leading-relaxed">
-                  The primary national basemap is configured with ISRO NRSC&apos;s Pan-India layer{' '}
+                  When the Bhuvan basemap style is selected, the map loads ISRO NRSC&apos;s Pan-India layer{' '}
                   <code className="bg-zinc-100 px-1 py-0.5 rounded font-mono text-[11px] text-zinc-800">sisdp_base:sisdp_basemap</code>,
                   providing uniform nationwide cartography across all 36 states and UTs. At municipal zoom, the controller dynamically switches
                   to regional 1:50,000 Land Use / Land Cover (LULC) rasters (such as <code className="bg-zinc-100 px-1 py-0.5 rounded font-mono text-[11px] text-zinc-800">lulc:KA_LULC50K_1112</code> for Bengaluru or <code className="bg-zinc-100 px-1 py-0.5 rounded font-mono text-[11px] text-zinc-800">lulc:MH_LULC50K_1112</code> for Pune/Mumbai).
+                  The default street basemap is OpenStreetMap; Bhuvan is chosen per user preference from the Map Style switcher.
                 </p>
               </div>
 
@@ -421,7 +425,7 @@ export default function HowItWorksPage() {
                 </strong>
                 <p className="leading-relaxed">
                   States without monitored metropolitan telemetry receive an honest regional baseline with neutral styling.
-                  States with monitored metropolitan centers (e.g., Kolkata in West Bengal with WBGT ≈ 33.2°C Severe Stress)
+                  States with monitored metropolitan centers (e.g., Kolkata in West Bengal — current WBGT per live forecast)
                   render data-driven thermal choropleths and telemetry popovers, ensuring complete cartographic truth across the nation.
                 </p>
               </div>

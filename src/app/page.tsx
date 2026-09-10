@@ -13,7 +13,7 @@
  *    - Section B: FORECAST PEAK (NEXT 120 HOURS) displaying Peak WBGT, Peak Date, Peak Time, and Count of affected wards.
  *    - Block 3: District Heat Evaluation — HeatPulse local evaluation of IMD criteria (color code, alert level). NOT an official IMD bulletin.
  * 4. OpenLayers MapContainer with primary ISRO NRSC Bhuvan WMS, OSM fallback, and LayerSwitcher.
- * 5. 3 to 5 Day Heatwave Early Warning & Thermal Trajectory Outlook.
+ * 5. 3 to 5 Day Heat & Thermal Stress Outlook (threshold classification — not heatwave-day detection).
  * 6. Integrated Right-Side Ward Detail Drawer preserving map visibility.
  */
 
@@ -35,8 +35,41 @@ import { evaluateImdDistrictWarning } from '@/lib/imd-service';
 import { calculateHeatIndex, calculateWBGT } from '@/lib/thermal-engine';
 import {
   THERMAL_STRESS_THRESHOLDS,
+  classifyThermalStress,
 } from '@/lib/threshold-config';
+import {
+  resolveCityTemporalMetrics,
+  temporalModeLabel as getTemporalModeLabel,
+  type TemporalMode,
+} from '@/lib/temporal-modes';
 import HeatwaveModelStatus from '@/components/HeatwaveModelStatus';
+
+/**
+ * Resolves the reference valid-time for PEAK mode from real ward forecasts
+ * (first ward's WBGT-peak hour). Returns null when no hourly data exists.
+ */
+function forecastPeakTimeLabel(
+  data: { weatherForecasts?: Record<string, { hourly?: { time?: string[]; temperature_2m?: number[]; relative_humidity_2m?: number[] } }> }
+): string | null {
+  const first = Object.values(data.weatherForecasts || {})[0];
+  const times = first?.hourly?.time;
+  const temps = first?.hourly?.temperature_2m;
+  const hums = first?.hourly?.relative_humidity_2m;
+  if (!times?.length || !temps || !hums) return null;
+  let bestIdx = -1;
+  let bestWbgt = -Infinity;
+  for (let i = 0; i < times.length; i++) {
+    const t = temps[i];
+    const h = hums[i];
+    if (typeof t !== 'number' || typeof h !== 'number') continue;
+    const w = calculateWBGT(t, h);
+    if (w > bestWbgt) {
+      bestWbgt = w;
+      bestIdx = i;
+    }
+  }
+  return bestIdx >= 0 ? times[bestIdx] : null;
+}
 
 export default function CityOverviewPage() {
   const selectedCity = useHeatPulseStore((s) => s.selectedCity);
@@ -50,6 +83,20 @@ export default function CityOverviewPage() {
 
   const cityMeta = CITIES[selectedCity] || CITIES.bengaluru;
 
+  // Active temporal mode (CURRENT | FORECAST | PEAK) — drives real data below.
+  const temporalMode: TemporalMode =
+    (forecastContext?.mode as TemporalMode | undefined) || 'CURRENT';
+  const activeModeLabel = getTemporalModeLabel(temporalMode);
+  const activeModeValidTime =
+    temporalMode === 'FORECAST'
+      ? forecastContext?.selectedValidTime ?? null
+      : temporalMode === 'PEAK'
+      ? forecastPeakTimeLabel(data)
+      : forecastContext?.currentValidTime ?? null;
+  const activeModeValidTimeFormatted = activeModeValidTime
+    ? `${formatDateIST(activeModeValidTime)} · ${formatToIST(activeModeValidTime)}`
+    : null;
+
   // Load city data on mount or city switch
   useEffect(() => {
     if (data.status === 'idle') {
@@ -62,10 +109,72 @@ export default function CityOverviewPage() {
     ((data.wardRisks && data.wardRisks.length > 0) || (data.assessments && data.assessments.length > 0))
   );
 
-  // SECTION A: CURRENT CONDITIONS (Aggregated at current forecast hour — ZERO HARDCODED SUMMER FALLBACKS)
+  // Mode-resolved per-ward metrics: the temporal mode changes the actual data
+  // feeding the map, tooltip, and drawer — not just a card border.
+  const temporalMetrics = useMemo(() => {
+    if (!data.weatherForecasts || Object.keys(data.weatherForecasts).length === 0) {
+      return null;
+    }
+    const vulnerabilityByWard: Record<string, number> = {};
+    (data.wardRisks || []).forEach((w) => {
+      if (typeof w.vulnerabilityScore === 'number' && Number.isFinite(w.vulnerabilityScore)) {
+        if (w.wardId || w.ward_id) vulnerabilityByWard[w.wardId || w.ward_id || ''] = w.vulnerabilityScore;
+        if (w.wardName || w.ward_name) vulnerabilityByWard[w.wardName || w.ward_name || ''] = w.vulnerabilityScore;
+      }
+    });
+    return resolveCityTemporalMetrics({
+      forecasts: data.weatherForecasts,
+      mode: temporalMode,
+      currentValidTime: forecastContext?.currentValidTime ?? null,
+      selectedValidTime: forecastContext?.selectedValidTime ?? null,
+      vulnerabilityByWard,
+    });
+  }, [data.weatherForecasts, data.wardRisks, temporalMode, forecastContext?.currentValidTime, forecastContext?.selectedValidTime]);
+
+  // SECTION A: CONDITIONS AT THE ACTIVE TEMPORAL MODE (aggregated city means — ZERO HARDCODED SUMMER FALLBACKS)
+  // In CURRENT mode this is the current forecast hour; the mode-resolved
+  // temporalMetrics feed the value when FORECAST/PEAK is active so this card
+  // never disagrees with the map.
   const currentConditions = useMemo(() => {
     if (!isDataReady) {
       return null;
+    }
+
+    // Mode-resolved values take precedence when the active mode is not CURRENT.
+    if (temporalMetrics && temporalMode !== 'CURRENT') {
+      const all = Object.values(temporalMetrics);
+      if (all.length > 0) {
+        const temps = all.map((m) => m.temperature).filter((t): t is number => t != null);
+        const hums = all.map((m) => m.humidity).filter((h): h is number => h != null);
+        const wbgts = all.map((m) => m.wbgt).filter((w): w is number => w != null);
+        const airTemp = temps.length ? Math.round((temps.reduce((a, b) => a + b, 0) / temps.length) * 10) / 10 : null;
+        const rh = hums.length ? Math.round(hums.reduce((a, b) => a + b, 0) / hums.length) : null;
+        const currentWbgt = wbgts.length ? Math.round((wbgts.reduce((a, b) => a + b, 0) / wbgts.length) * 10) / 10 : null;
+
+        // Classification delegated to threshold-config (single source of truth).
+        const stressLevel = currentWbgt != null
+          ? classifyThermalStress(undefined, currentWbgt)
+          : null;
+        let thermalStatus = 'Low Stress';
+        let statusBadge = 'bg-emerald-100 text-emerald-800 border-emerald-300';
+        if (stressLevel === 'Severe') {
+          thermalStatus = 'Severe Stress';
+          statusBadge = 'bg-red-100 text-red-800 border-red-300';
+        } else if (stressLevel === 'High') {
+          thermalStatus = 'High Stress';
+          statusBadge = 'bg-orange-100 text-orange-800 border-orange-300';
+        } else if (stressLevel === 'Moderate') {
+          thermalStatus = 'Moderate Stress';
+          statusBadge = 'bg-amber-100 text-amber-800 border-amber-300';
+        }
+
+        const winds = Object.values(data.weatherForecasts || {})
+          .map((f) => (temporalMode === 'PEAK' ? undefined : f.current?.wind_speed_10m))
+          .filter((w): w is number => typeof w === 'number' && w >= 0);
+        const windSpeed = winds.length ? Math.round((winds.reduce((a, b) => a + b, 0) / winds.length) * 10) / 10 : null;
+
+        return { airTemp, rh, windSpeed, currentWbgt, thermalStatus, statusBadge };
+      }
     }
 
     const legacyWards = data.wardRisks || [];
@@ -103,23 +212,22 @@ export default function CityOverviewPage() {
       currentWbgt = calculateWBGT(airTemp, rh);
     }
 
+    // Classification delegated to threshold-config (single source of truth).
+    const stressLevel = currentWbgt != null
+      ? classifyThermalStress(undefined, currentWbgt)
+      : null;
     let thermalStatus = 'Low Stress';
     let statusBadge = 'bg-emerald-100 text-emerald-800 border-emerald-300';
 
-    if (currentWbgt != null) {
-      if (currentWbgt >= 32.0) {
-        thermalStatus = 'Severe Stress';
-        statusBadge = 'bg-red-100 text-red-800 border-red-300';
-      } else if (currentWbgt >= 30.0) {
-        thermalStatus = 'High Stress';
-        statusBadge = 'bg-orange-100 text-orange-800 border-orange-300';
-      } else if (currentWbgt >= 28.0) {
-        thermalStatus = 'Moderate Stress';
-        statusBadge = 'bg-amber-100 text-amber-800 border-amber-300';
-      } else {
-        thermalStatus = 'Low Stress';
-        statusBadge = 'bg-emerald-100 text-emerald-800 border-emerald-300';
-      }
+    if (stressLevel === 'Severe') {
+      thermalStatus = 'Severe Stress';
+      statusBadge = 'bg-red-100 text-red-800 border-red-300';
+    } else if (stressLevel === 'High') {
+      thermalStatus = 'High Stress';
+      statusBadge = 'bg-orange-100 text-orange-800 border-orange-300';
+    } else if (stressLevel === 'Moderate') {
+      thermalStatus = 'Moderate Stress';
+      statusBadge = 'bg-amber-100 text-amber-800 border-amber-300';
     }
 
     return {
@@ -130,7 +238,7 @@ export default function CityOverviewPage() {
       thermalStatus,
       statusBadge,
     };
-  }, [isDataReady, data]);
+  }, [isDataReady, data, temporalMetrics, temporalMode]);
   // SECTION B: FORECAST PEAK (NEXT 120 HOURS — Strict temporal separation from current hour)
   const forecastPeak = useMemo(() => {
     if (!isDataReady) {
@@ -252,6 +360,9 @@ export default function CityOverviewPage() {
     const humidity = humidities[0];
     const gamma = Math.log(Math.max(1, humidity) / 100) + (17.27 * temperature) / (237.3 + temperature);
     const dewpoint = (237.3 * gamma) / (17.27 - gamma);
+    // Optional provider fields pass through as 0 only when genuinely absent —
+    // the model schema requires numbers, and 0 is the honest "no radiation /
+    // calm wind" value when the provider omitted the field.
     const radiation = forecast.hourly.direct_normal_irradiance?.find(Number.isFinite) ?? 0;
     const windKmh = forecast.hourly.wind_speed_10m?.find(Number.isFinite) ?? 0;
     const firstDate = new Date(forecast.hourly.time[0]);
@@ -434,31 +545,55 @@ export default function CityOverviewPage() {
             <div className="inline-flex rounded-lg p-0.5 bg-zinc-100 border border-zinc-200">
               <button
                 type="button"
-                onClick={() => (heatPulseActions as { setForecastMode?: (m: string) => void }).setForecastMode?.('CURRENT')}
+                onClick={() => heatPulseActions.setForecastMode('CURRENT')}
                 className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${
-                  forecastContext?.mode === 'CURRENT' || !forecastContext?.mode
+                  temporalMode === 'CURRENT'
                     ? 'bg-white text-zinc-900 shadow-xs'
                     : 'text-zinc-600 hover:text-zinc-900'
                 }`}
               >
-                ● Current Conditions
+                ● Current
               </button>
               <button
                 type="button"
-                onClick={() => (heatPulseActions as { setForecastMode?: (m: string) => void }).setForecastMode?.('PEAK')}
+                onClick={() => heatPulseActions.setForecastMode('FORECAST')}
+                disabled={!forecastContext?.selectedValidTime}
+                title={
+                  forecastContext?.selectedValidTime
+                    ? 'Inspect the forecast hour selected on /forecast'
+                    : 'Select a forecast hour on the Forecast page first'
+                }
                 className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${
-                  forecastContext?.mode === 'PEAK'
+                  temporalMode === 'FORECAST'
+                    ? 'bg-white text-indigo-800 shadow-xs'
+                    : forecastContext?.selectedValidTime
+                    ? 'text-zinc-600 hover:text-zinc-900'
+                    : 'text-zinc-300 cursor-not-allowed'
+                }`}
+              >
+                ◷ Selected Forecast
+              </button>
+              <button
+                type="button"
+                onClick={() => heatPulseActions.setForecastMode('PEAK')}
+                className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${
+                  temporalMode === 'PEAK'
                     ? 'bg-white text-red-700 shadow-xs'
                     : 'text-zinc-600 hover:text-zinc-900'
                 }`}
               >
-                ▲ 120h Forecast Peak
+                ▲ Peak
               </button>
             </div>
+            {activeModeValidTimeFormatted && (
+              <span className="text-[10px] font-mono text-zinc-600 bg-zinc-50 border border-zinc-200 px-1.5 py-0.5 rounded">
+                {activeModeLabel}: {activeModeValidTimeFormatted}
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-4 text-[11px] text-zinc-500">
             <span>
-              Observation Window: <strong className="text-zinc-800 font-mono">{currentValidTimeFormatted}</strong>
+              Current Valid Time: <strong className="text-zinc-800 font-mono">{currentValidTimeFormatted}</strong>
             </span>
             {forecastContext?.forecastRunTime && (
               <span className="hidden sm:inline border-l border-zinc-200 pl-3">
@@ -519,9 +654,11 @@ export default function CityOverviewPage() {
           {/* SECTION A: CURRENT CONDITIONS */}
           <div
             className={`bg-white rounded-2xl p-4 border shadow-xs flex flex-col justify-between relative overflow-hidden transition-all ${
-              forecastContext?.mode === 'CURRENT' || !forecastContext?.mode
+              temporalMode === 'CURRENT'
                 ? 'border-orange-300 ring-2 ring-orange-400/20'
-                : 'border-zinc-200/90'
+                : temporalMode === 'FORECAST'
+                ? 'border-indigo-300 ring-2 ring-indigo-400/20'
+                : 'border-red-300 ring-2 ring-red-400/20'
             }`}
           >
             <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-amber-500" />
@@ -530,7 +667,7 @@ export default function CityOverviewPage() {
                 <div className="flex items-center gap-2">
                   <Thermometer className="w-4 h-4 text-orange-500" />
                   <span className="text-xs font-bold text-zinc-600 uppercase tracking-wider">
-                    CURRENT CONDITIONS ({currentValidTimeFormatted})
+                    CONDITIONS ({activeModeLabel})
                   </span>
                 </div>
                 {currentConditions ? (
@@ -592,15 +729,19 @@ export default function CityOverviewPage() {
             </div>
 
             <div className="mt-4 pt-3 border-t border-zinc-100 flex items-center justify-between text-[11px] text-zinc-500">
-              <span>Temporal Scope: Current Hour</span>
-              <span className="font-mono text-zinc-700">Valid: {currentValidTimeFormatted}</span>
+              <span>
+                Temporal Scope: {activeModeLabel === 'CURRENT' ? 'Current Hour' : activeModeLabel === 'FORECAST' ? 'Selected Forecast Hour' : 'Max over forecast window'}
+              </span>
+              <span className="font-mono text-zinc-700">
+                Valid: {activeModeValidTimeFormatted || currentValidTimeFormatted}
+              </span>
             </div>
           </div>
 
           {/* SECTION B: FORECAST PEAK (NEXT 120 HOURS) */}
           <div
             className={`bg-white rounded-2xl p-4 border shadow-xs flex flex-col justify-between relative overflow-hidden transition-all ${
-              forecastContext?.mode === 'PEAK'
+              temporalMode === 'PEAK'
                 ? 'border-red-400 ring-2 ring-red-400/20'
                 : 'border-zinc-200/90'
             }`}
@@ -680,7 +821,7 @@ export default function CityOverviewPage() {
             </div>
           </div>
 
-          {/* BLOCK 3: OFFICIAL IMD DISTRICT REFERENCE (MoES / IMD Bulletin) */}
+          {/* BLOCK 3: DISTRICT HEAT EVALUATION (HeatPulse-applied IMD criteria — NOT an official IMD/MoES bulletin) */}
           <div
             className={`rounded-2xl p-4 border shadow-xs flex flex-col justify-between relative overflow-hidden ${activeImdStyle.bg} ${activeImdStyle.border}`}
           >
@@ -696,7 +837,9 @@ export default function CityOverviewPage() {
                 <span
                   className={`text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full border ${activeImdStyle.badge}`}
                 >
-                  {imdWarning.color_code} · {imdWarning.action_level}
+                  {imdWarning.has_forecast_input
+                    ? `${imdWarning.color_code} · ${imdWarning.action_level}`
+                    : 'Assessment Unavailable'}
                 </span>
               </div>
 
@@ -707,6 +850,11 @@ export default function CityOverviewPage() {
                 <p className="text-xs text-zinc-700 mt-1.5 leading-relaxed">
                   {imdWarning.warning_description}
                 </p>
+                {!imdWarning.has_forecast_input && (
+                  <p className="text-[10px] text-zinc-500 mt-1.5 italic">
+                    No forecast temperature input available — criteria not evaluated.
+                  </p>
+                )}
               </div>
 
               <div className="mt-2 text-[10px] text-zinc-600 bg-white/70 rounded-lg p-2 border border-zinc-200/60 leading-tight">
@@ -747,6 +895,8 @@ export default function CityOverviewPage() {
             <MapContainer
               adminWardsGeoJSON={data.geoJson || undefined}
               wardRisks={data.wardRisks}
+              temporalMetrics={temporalMetrics ?? undefined}
+              temporalModeLabel={activeModeLabel}
               selectedWard={selectedWard}
               selectedWardId={selectedWardId}
               selectedCity={selectedCity}
@@ -764,17 +914,17 @@ export default function CityOverviewPage() {
         </section>
 
         {/* ============================================================ */}
-        {/* 3 TO 5 DAY HEATWAVE EARLY WARNING & THERMAL OUTLOOK */}
+        {/* 3 TO 5 DAY HEAT & THERMAL STRESS OUTLOOK (threshold classification, not heatwave-day detection) */}
         {/* ============================================================ */}
         <section
-          aria-label="3 to 5 Day Heatwave Early Warning Outlook"
+          aria-label="3 to 5 Day Heat and Thermal Stress Outlook"
           className="bg-white rounded-2xl border border-zinc-200 p-5 shadow-xs space-y-3"
         >
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <CalendarDays className="w-4 h-4 text-orange-600" />
               <h2 className="text-sm font-bold text-zinc-900">
-                3 to 5 Day Heatwave Early Warning & Thermal Trajectory Outlook ({cityMeta.name})
+                3 to 5 Day Heat &amp; Thermal Stress Outlook ({cityMeta.name})
               </h2>
             </div>
             <span className="text-xs text-zinc-500">

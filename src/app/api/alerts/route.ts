@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
     const wardEntries = Object.values(run.wards);
 
     const alerts: HeatAlert[] = [];
-    let maxTemp = 0;
+    let maxTemp: number | null = null;
 
     for (const wardForecast of wardEntries) {
       if (wardParam && wardForecast.ward_name !== wardParam && wardForecast.ward_id !== wardParam) {
@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
       }
 
       const cur = wardForecast.current;
-      if (cur.temperature_2m > maxTemp) {
+      if (typeof cur.temperature_2m === 'number' && cur.temperature_2m > (maxTemp ?? -Infinity)) {
         maxTemp = cur.temperature_2m;
       }
 
@@ -85,7 +85,7 @@ export async function GET(request: NextRequest) {
         message = `HeatPulse Localized Advisory: Elevated Heat Index ${thermal.heat_index}°C in ${wardForecast.ward_name}. Reduce outdoor exertion and enforce regular hydration.`;
       } else if (thermal.heat_index >= ALERT_THRESHOLDS.watchHi || assessment.composite_risk_score >= ALERT_THRESHOLDS.compositeWatch) {
         alertLevel = 'watch';
-        message = `HeatPulse Localized Advisory: Heat Index ${thermal.heat_index}°C in ${wardForecast.ward_name}. Monitor microclimate conditions and support vulnerable populations.`;
+        message = `HeatPulse Localized Advisory: Heat Index ${thermal.heat_index}°C in ${wardForecast.ward_name}. Monitor local conditions and support vulnerable populations.`;
       }
 
       if (alertLevel) {
@@ -131,8 +131,10 @@ export async function GET(request: NextRequest) {
     alerts.sort((a, b) => severityOrder[a.level] - severityOrder[b.level]);
 
     // Provide IMD-criteria district evaluation alongside (criteria-based, not an
-    // official IMD bulletin — see imd-service.ts provenance note)
-    const districtHeatEvaluation = evaluateImdDistrictWarning(cityParam, maxTemp);
+    // official IMD bulletin — see imd-service.ts provenance note). maxTemp stays
+    // null when no ward carried a temperature; the evaluation then reports
+    // "no forecast input" rather than substituting a normal.
+    const districtHeatEvaluation = evaluateImdDistrictWarning(cityParam, maxTemp ?? undefined);
 
     return NextResponse.json({
       success: true,

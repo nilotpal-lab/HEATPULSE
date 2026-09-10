@@ -43,8 +43,15 @@ import {
   classifyThermalStress,
   classifyVulnerabilityLevel,
   calculateRelativeRisk,
+  calculateThermalScore,
+  RISK_WEIGHTS,
   RELATIVE_RISK_THRESHOLDS,
 } from '@/lib/threshold-config';
+import {
+  resolveWardTemporalMetrics,
+  temporalModeLabel as getTemporalModeLabel,
+  type TemporalMode,
+} from '@/lib/temporal-modes';
 
 export default function WardDetailDrawer() {
   const isOpen = useHeatPulseStore((s) => s.isDrawerOpen);
@@ -154,9 +161,33 @@ export default function WardDetailDrawer() {
   const centroid = wardFeature?.properties.centroid ||
     (legacyRisk ? [legacyRisk.lon, legacyRisk.lat] : cityMeta.center);
 
-  // SECTION 2: Current meteorological values (GENUINE DATA ONLY — ZERO HARDCODED SUMMER FALLBACKS)
+  // SECTION 2: Conditions at the ACTIVE TEMPORAL MODE (genuine data only —
+  // zero hardcoded summer fallbacks). In CURRENT mode these are the
+  // current-hour values; FORECAST/PEAK resolve from the real 120h NWP arrays
+  // so the drawer always matches the map's active mode.
+  const temporalMode: TemporalMode =
+    (forecastContext?.mode as TemporalMode | undefined) || 'CURRENT';
+  const activeModeLabel = getTemporalModeLabel(temporalMode);
+
+  const temporalMetrics = useMemo(() => {
+    if (temporalMode === 'CURRENT') return null;
+    if (!weatherForecast) return null;
+    return resolveWardTemporalMetrics({
+      forecast: weatherForecast,
+      mode: temporalMode,
+      currentValidTime: forecastContext?.currentValidTime ?? null,
+      selectedValidTime: forecastContext?.selectedValidTime ?? null,
+      vulnerabilityScore:
+        legacyRisk?.vulnerabilityScore != null
+          ? legacyRisk.vulnerabilityScore
+          : (assessment?.vulnerability_score ?? null),
+    });
+  }, [temporalMode, weatherForecast, forecastContext?.currentValidTime, forecastContext?.selectedValidTime, legacyRisk, assessment]);
+
   const currentTemp =
-    legacyRisk?.currentTemp != null
+    temporalMetrics?.temperature != null
+      ? Math.round(temporalMetrics.temperature * 10) / 10
+      : legacyRisk?.currentTemp != null
       ? Math.round(legacyRisk.currentTemp * 10) / 10
       : weatherForecast?.current?.temperature_2m != null
       ? Math.round(weatherForecast.current.temperature_2m * 10) / 10
@@ -165,7 +196,9 @@ export default function WardDetailDrawer() {
       : null;
 
   const currentHumidity =
-    legacyRisk?.currentHumidity != null
+    temporalMetrics?.humidity != null
+      ? Math.round(temporalMetrics.humidity)
+      : legacyRisk?.currentHumidity != null
       ? Math.round(legacyRisk.currentHumidity)
       : weatherForecast?.current?.relative_humidity_2m != null
       ? Math.round(weatherForecast.current.relative_humidity_2m)
@@ -175,9 +208,12 @@ export default function WardDetailDrawer() {
     weatherForecast?.current?.wind_speed_10m != null
       ? Math.round(weatherForecast.current.wind_speed_10m * 10) / 10
       : null;
-  // SECTION 4: Biometeorological metrics
+  // SECTION 4: Biometeorological metrics (mode-resolved first, then pipeline
+  // values, then computed from real temp/RH — never invented).
   const heatIndex =
-    assessment?.thermal?.heat_index != null
+    temporalMetrics?.heatIndex != null
+      ? Math.round(temporalMetrics.heatIndex * 10) / 10
+      : assessment?.thermal?.heat_index != null
       ? Math.round(assessment.thermal.heat_index * 10) / 10
       : legacyRisk?.heatIndex != null
       ? Math.round(legacyRisk.heatIndex * 10) / 10
@@ -186,7 +222,9 @@ export default function WardDetailDrawer() {
       : null;
 
   const wbgt =
-    assessment?.thermal?.wbgt != null
+    temporalMetrics?.wbgt != null
+      ? Math.round(temporalMetrics.wbgt * 10) / 10
+      : assessment?.thermal?.wbgt != null
       ? Math.round(assessment.thermal.wbgt * 10) / 10
       : legacyRisk?.wbgt != null
       ? Math.round(legacyRisk.wbgt * 10) / 10
@@ -203,10 +241,12 @@ export default function WardDetailDrawer() {
 
   // Classification derived exclusively from threshold-config (single source of truth).
   const heatCondition: 'Normal' | 'Elevated' | 'High' | 'Extreme' =
+    temporalMetrics?.heatCondition ||
     assessment?.thermal?.heat_condition ||
     (currentTemp != null ? classifyHeatCondition(currentTemp) : 'Normal');
 
   const thermalStress: 'Low' | 'Moderate' | 'High' | 'Severe' =
+    temporalMetrics?.thermalStress ||
     assessment?.thermal?.thermal_stress ||
     (heatIndex != null || wbgt != null
       ? classifyThermalStress(heatIndex ?? 0, wbgt ?? undefined)
@@ -341,7 +381,9 @@ export default function WardDetailDrawer() {
 
   // SECTION 7: Health Burden / Relative Risk (RR) Formulation
   // Single authoritative RR math lives in threshold-config.calculateRelativeRisk.
-  const healthRelativeRisk = useMemo(() => {
+  // Plain derived value (no memo): deps are computed consts each render and
+  // calculateRelativeRisk is a cheap pure function.
+  const healthRelativeRisk = (() => {
     const effectiveWbgt = wbgt ?? null;
     if (effectiveWbgt == null) return null;
 
@@ -355,17 +397,26 @@ export default function WardDetailDrawer() {
       thresholdExceeded: effectiveWbgt > RELATIVE_RISK_THRESHOLDS.onsetWbgt,
       baseWbgt: effectiveWbgt,
     };
-  }, [wbgt, componentDataAvailable, vulnerabilityScore]);
+  })();
 
-  // Temporal Labels
+  // Temporal Labels — the displayed valid time follows the ACTIVE mode.
   const metadata =
     assessment?.forecast_metadata ||
     weatherForecast?.metadata ||
     activeCityData?.forecastMetadata;
 
+  const modeValidTime =
+    temporalMode === 'FORECAST'
+      ? forecastContext?.selectedValidTime ?? null
+      : temporalMetrics?.validTime ??
+        forecastContext?.currentValidTime ??
+        metadata?.valid_time ??
+        null;
+
   const currentValidTimeFormatted =
-    forecastContext?.currentValidTime ||
-    (metadata?.valid_time ? formatToIST(metadata.valid_time) : formatToIST(new Date().toISOString()));
+    modeValidTime != null
+      ? `${formatToIST(modeValidTime)}`
+      : formatToIST(new Date().toISOString());
 
   const forecastPeakWindowFormatted = `${peakPeriodInfo.date} · ${peakPeriodInfo.window}`;
 
@@ -462,7 +513,7 @@ export default function WardDetailDrawer() {
             <div className="flex items-center justify-between text-[11px] font-bold text-zinc-500 uppercase tracking-wider">
               <span className="flex items-center gap-1.5 text-zinc-700">
                 <Thermometer className="w-3.5 h-3.5 text-orange-600" />
-                <span>Section 2 · Current Conditions</span>
+                <span>Section 2 · Conditions ({activeModeLabel})</span>
               </span>
               <span className="text-[10px] font-mono font-medium text-zinc-600 bg-zinc-200/70 px-1.5 py-0.5 rounded border border-zinc-300/40">
                 Valid: {currentValidTimeFormatted}
@@ -562,7 +613,7 @@ export default function WardDetailDrawer() {
                 <span>Section 4 · Human Thermal Stress</span>
               </span>
               <span className="text-[10px] font-mono font-medium text-zinc-600 bg-zinc-200/70 px-1.5 py-0.5 rounded border border-zinc-300/40">
-                Assessment: {currentValidTimeFormatted}
+                Assessment ({activeModeLabel}): {currentValidTimeFormatted}
               </span>
             </div>
 
@@ -717,9 +768,11 @@ export default function WardDetailDrawer() {
 
             <div className="space-y-1.5 text-[11px]">
               <div className="flex justify-between text-zinc-600">
-                <span>Atmospheric Thermal Hazard (60% weight, α=0.6)</span>
+                <span>Atmospheric Thermal Hazard ({Math.round(RISK_WEIGHTS.alpha * 100)}% weight, α={RISK_WEIGHTS.alpha})</span>
                 <span className="font-mono font-semibold text-zinc-900">
-                  {heatIndex != null ? `${Math.round(heatIndex * 0.6)} pts` : '--'}
+                  {heatIndex != null
+                    ? `${Math.round(calculateThermalScore(heatIndex) * RISK_WEIGHTS.alpha)} pts (score ${calculateThermalScore(heatIndex)})`
+                    : '--'}
                 </span>
               </div>
               <div className="w-full bg-zinc-200 h-1.5 rounded-full overflow-hidden">
@@ -727,10 +780,10 @@ export default function WardDetailDrawer() {
               </div>
 
               <div className="flex justify-between text-zinc-600 pt-1">
-                <span>Baseline Socio-Ecological Vulnerability (40% weight, β=0.4)</span>
+                <span>Baseline Socio-Ecological Vulnerability ({Math.round(RISK_WEIGHTS.beta * 100)}% weight, β={RISK_WEIGHTS.beta})</span>
                 <span className="font-mono font-semibold text-zinc-900">
                   {componentDataAvailable && vulnerabilityScore != null
-                    ? `${Math.round(vulnerabilityScore * 0.4)} pts`
+                    ? `${Math.round(vulnerabilityScore * RISK_WEIGHTS.beta)} pts (score ${vulnerabilityScore})`
                     : 'unavailable'}
                 </span>
               </div>

@@ -7,7 +7,7 @@
  * Capabilities:
  * 1. National-scale thermal overview (LOD 0: no ward polygon clutter, city marker pins)
  * 2. 6 Monitored City Summary Cards (Bengaluru 369, Pune 15, Mumbai 24, Kolkata 141, Chennai 200, Coimbatore 100)
- * 3. Live atmospheric metrics per city (Dry-bulb, Heat Index, WBGT, UTCI Proxy)
+ * 3. Current NWP-derived atmospheric metrics per city (Dry-bulb, Heat Index, WBGT, UTCI Proxy)
  * 4. District Heat Evaluation status color codes (HeatPulse local IMD-criteria eval)
  * 5. One-click navigation to City Overview
  */
@@ -106,8 +106,9 @@ export default function IndiaOverviewPage() {
             maxRiskLevel = hasSevere ? 'Severe' : hasHigh ? 'High' : hasModerate ? 'Moderate' : 'Low';
           }
 
-          // IMD evaluation uses the real peak temperature when available.
-          const imdWarning = evaluateImdDistrictWarning(city.id, peakTemp ?? 35);
+          // IMD evaluation uses the real peak temperature when available; with
+          // no telemetry it renders an explicit unavailable assessment.
+          const imdWarning = evaluateImdDistrictWarning(city.id, peakTemp ?? undefined);
 
           return {
             cityId: city.id,
@@ -124,8 +125,9 @@ export default function IndiaOverviewPage() {
             status: legacyWards.length > 0 ? ('fresh' as const) : ('unavailable' as const),
           };
         } catch {
-          // No fabricated fallback numbers: mark the city unavailable.
-          const imd = evaluateImdDistrictWarning(city.id, 35);
+          // No fabricated fallback numbers: mark the city unavailable; the IMD
+          // evaluation also renders as unavailable without a real temperature.
+          const imd = evaluateImdDistrictWarning(city.id, undefined);
           return {
             cityId: city.id,
             name: city.name,
@@ -255,7 +257,7 @@ export default function IndiaOverviewPage() {
   const cityTemps = cityMetrics.map((c) => c.temperature).filter((v): v is number => v != null && Number.isFinite(v));
   const highestTemp = cityTemps.length > 0 ? Math.max(...cityTemps) : null;
   const imdAlertsCount = cityMetrics.filter(
-    (c) => c.imdWarning.color_code === 'ORANGE' || c.imdWarning.color_code === 'RED'
+    (c) => c.imdWarning.has_forecast_input && (c.imdWarning.color_code === 'ORANGE' || c.imdWarning.color_code === 'RED')
   ).length;
 
   return (
@@ -377,7 +379,7 @@ export default function IndiaOverviewPage() {
               <span>Monitored Municipal Centers (6 Cities · 849 Wards)</span>
             </h2>
             <span className="text-xs text-zinc-500">
-              {loading ? 'Refreshing metro forecast telemetry...' : 'Click any card to inspect ward polygons'}
+              {loading ? 'Refreshing metro NWP forecasts...' : 'Click any card to inspect ward polygons'}
             </span>
           </div>
 
@@ -422,14 +424,18 @@ export default function IndiaOverviewPage() {
                       </p>
                     </div>
 
-                    {/* IMD District Badge */}
+                    {/* IMD District Badge (HeatPulse-applied criteria — not a bulletin) */}
                     <div
                       className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border ${
-                        imdBadges[imdColor]
+                        metrics && metrics.imdWarning.has_forecast_input
+                          ? imdBadges[imdColor]
+                          : 'bg-zinc-50 text-zinc-400 border-zinc-200'
                       }`}
                       title={metrics?.imdWarning.headline}
                     >
-                      IMD Criteria: {imdColor}
+                      {metrics && metrics.imdWarning.has_forecast_input
+                        ? `IMD Criteria: ${imdColor}`
+                        : 'IMD Criteria: N/A'}
                     </div>
                   </div>
 

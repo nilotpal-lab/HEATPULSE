@@ -242,15 +242,18 @@ async function fetchCityForecastFromProvider(
     let currentIdx = hourlyTimes.findIndex((t) => t === validTime || t.startsWith(validTime.slice(0, 13)));
     if (currentIdx === -1) currentIdx = 0;
 
+    // Optional provider fields are passed through as undefined when absent —
+    // never substituted with invented 0 km/h / 1013.25 hPa stand-ins. Consumers
+    // render "unavailable" for missing values.
     const current: WardCurrentWeather = {
       time: hourlyTimes[currentIdx],
       temperature_2m: raw.hourly.temperature_2m[currentIdx],
       relative_humidity_2m: raw.hourly.relative_humidity_2m[currentIdx],
       apparent_temperature: raw.hourly.apparent_temperature[currentIdx],
-      wind_speed_10m: raw.hourly.wind_speed_10m?.[currentIdx] ?? 0,
-      direct_normal_irradiance: raw.hourly.direct_normal_irradiance?.[currentIdx] ?? 0,
-      surface_pressure: raw.hourly.surface_pressure?.[currentIdx] ?? 1013.25,
-      weather_code: raw.hourly.weather_code?.[currentIdx] ?? 0,
+      wind_speed_10m: raw.hourly.wind_speed_10m?.[currentIdx],
+      direct_normal_irradiance: raw.hourly.direct_normal_irradiance?.[currentIdx],
+      surface_pressure: raw.hourly.surface_pressure?.[currentIdx],
+      weather_code: raw.hourly.weather_code?.[currentIdx],
     };
 
     const hourly: WardHourlyWeather = {

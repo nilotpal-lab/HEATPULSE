@@ -30,9 +30,15 @@ export interface ImdDistrictWarning {
   forecast_tmax?: number;
   departure?: number;
   authority: string;
-  issued_at: string;
+  /**
+   * Local computation timestamp — explicitly NOT an IMD issuance time.
+   * Renamed from issued_at so it can never be mistaken for bulletin metadata.
+   */
+  computed_at: string;
   scope: 'District';
   disclaimer: string;
+  /** true when a real forecast Tmax was evaluated; false = no input data. */
+  has_forecast_input: boolean;
 }
 
 export interface DistrictMetadata {
@@ -120,11 +126,36 @@ export function evaluateImdDistrictWarning(
   const district = MONITORED_DISTRICTS[normCity] ?? MONITORED_DISTRICTS['bengaluru'];
 
   const normal = district.normalTmax;
-  const tmax =
-    typeof observedOrForecastTmax === 'number' && !isNaN(observedOrForecastTmax)
-      ? observedOrForecastTmax
-      : normal;
+  const hasInput =
+    typeof observedOrForecastTmax === 'number' && !isNaN(observedOrForecastTmax);
+  const tmax = hasInput ? (observedOrForecastTmax as number) : normal;
   const departure = Math.round((tmax - normal) * 10) / 10;
+
+  // No-data path: never substitute the climatological normal as if it were a
+  // real forecast reading and produce a confident color. The evaluation is
+  // marked as having no forecast input so the UI can render "unavailable".
+  if (!hasInput) {
+    return {
+      district_name: district.districtName,
+      city_id: district.cityId,
+      state: district.state,
+      color_code: 'GREEN',
+      action_level: 'No Warning',
+      headline: `Assessment unavailable for ${district.districtName} District — no forecast temperature input`,
+      warning_description:
+        'HeatPulse could not evaluate IMD heat-wave criteria because no forecast maximum temperature was available for this district.',
+      criteria_citation:
+        'IMD Standard Criteria: evaluation requires a forecast Tmax and climatological normal.',
+      climatological_normal_tmax: normal,
+      forecast_tmax: undefined,
+      departure: undefined,
+      authority: AUTHORITY_STRING,
+      computed_at: new Date().toISOString(),
+      scope: 'District',
+      disclaimer: DISCLAIMER_STRING,
+      has_forecast_input: false,
+    };
+  }
 
   let colorCode: ImdColorCode = 'GREEN';
   let actionLevel: ImdActionLevel = 'No Warning';
@@ -203,22 +234,28 @@ export function evaluateImdDistrictWarning(
     forecast_tmax: tmax,
     departure,
     authority: AUTHORITY_STRING,
-    issued_at: new Date().toISOString(),
+    computed_at: new Date().toISOString(),
     scope: 'District',
     disclaimer: DISCLAIMER_STRING,
+    has_forecast_input: true,
   };
 }
 
 /**
- * Retrieves HeatPulse IMD-criteria evaluations for all 6 monitored city districts
+ * Retrieves HeatPulse IMD-criteria evaluations for all 6 monitored city districts.
+ * A city without a forecast temperature (absent key) evaluates to the explicit
+ * "no forecast input" unavailable assessment — never a substituted normal.
  */
 export function getAllImdDistrictWarnings(
-  cityTemps?: Record<string, number>
+  cityTemps?: Record<string, number | undefined>
 ): Record<string, ImdDistrictWarning> {
   const result: Record<string, ImdDistrictWarning> = {};
   for (const cityId of Object.keys(MONITORED_DISTRICTS)) {
     const tmax = cityTemps?.[cityId];
-    result[cityId] = evaluateImdDistrictWarning(cityId, tmax);
+    result[cityId] = evaluateImdDistrictWarning(
+      cityId,
+      typeof tmax === 'number' && Number.isFinite(tmax) ? tmax : undefined
+    );
   }
   return result;
 }

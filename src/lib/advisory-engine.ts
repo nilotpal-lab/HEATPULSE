@@ -220,7 +220,7 @@ const GRADE_CONFIG: Record<AdvisoryGrade, {
     ],
     vulnerableGuidance: [
       'Elderly (60+): STAY indoors during peak hours. Family members should check on elderly relatives at least twice daily.',
-      'Outdoor workers: HALT strenuous activity between 11:00 AM and 5:00 PM. Employers MUST provide shade and hydration.',
+      'Outdoor workers: STOP strenuous activity between 11:00 AM and 5:00 PM. Employers are strongly advised to provide shade and hydration (statutory requirements are set by labour law, not this advisory).',
       'Children: Cancel all outdoor school activities. Ensure adequate fluid intake.',
       'People with chronic conditions (diabetes, heart disease, respiratory illness): Keep medications accessible; heat can destabilize chronic conditions.',
       'Slum and informal settlement residents: Municipal cooling centres open for relief.',
@@ -235,8 +235,8 @@ const GRADE_CONFIG: Record<AdvisoryGrade, {
       },
       {
         category: 'work_hour',
-        title: 'ENFORCE Work Hour Restrictions',
-        description: 'Mandatory halt of outdoor construction and manual labour between 11:00 AM and 5:00 PM. Deploy labour inspectors for compliance.',
+        title: 'RECOMMEND Work Hour Restrictions',
+        description: 'Municipal Action Recommendation: halt outdoor construction and manual labour between 11:00 AM and 5:00 PM. Deploy labour inspectors to encourage compliance; formal enforcement rests with the competent authority.',
         urgency: 'urgent',
         target_audience: ['Labour Commissioner', 'Municipal Labour Inspector', 'Construction Companies'],
       },
@@ -288,7 +288,7 @@ const GRADE_CONFIG: Record<AdvisoryGrade, {
     ],
     vulnerableGuidance: [
       'Elderly (60+): You are at EXTREME RISK. Stay in coolest room of your home. If no cooling available, go to nearest cooling centre immediately.',
-      'Outdoor workers: ALL outdoor work HALTED by municipal order. Employers face penalties for non-compliance.',
+      'Outdoor workers: HeatPulse recommends suspending ALL outdoor work during the heat emergency. Any suspension order and penalties are issued by municipal authorities, not by this advisory.',
       'Children: ALL outdoor activities cancelled. Schools may shift to online/holiday mode.',
       'Chronic illness patients: Heat can be fatal. Ensure medication access; keep emergency contacts ready.',
       'Informal settlement residents: Municipal emergency shelters open. Relocate to nearest cooling centre if dwelling is not habitable.',
@@ -304,8 +304,8 @@ const GRADE_CONFIG: Record<AdvisoryGrade, {
       },
       {
         category: 'work_hour',
-        title: 'MANDATORY Outdoor Work Suspension',
-        description: 'LEGAL ORDER: All outdoor construction, manual labour, and street vending HALTED between 10:00 AM and 6:00 PM. Penalties for violations.',
+        title: 'RECOMMENDED Outdoor Work Suspension',
+        description: 'Municipal Action Recommendation: suspend all outdoor construction, manual labour, and street vending between 10:00 AM and 6:00 PM during the heat emergency. Formal orders and penalties are issued by the competent authority, not by HeatPulse.',
         urgency: 'emergency',
         target_audience: ['District Collector', 'Labour Commissioner', 'Police Commissioner', 'All Employers'],
       },
@@ -408,7 +408,8 @@ export function generateAdvisory(params: {
     valid_from: params.valid_from,
     valid_until: params.valid_until,
     generated_at: new Date().toISOString(),
-    attribution: 'HeatPulse Automated Public Health Advisory — Biometeorological Stress Assessment',
+    attribution:
+      'HeatPulse Automated Public Health Advisory — biometeorological stress assessment and recommended actions. Not a legal order; official directives come from IMD / MoES / municipal authorities.',
   };
 }
 

@@ -78,19 +78,21 @@ export default function ForecastPage() {
 
   // Generate or extract 120-hour timeline points from genuine NWP data only.
   // When the forecast has not loaded yet, show an unavailable state — never a
-  // fabricated cosine-temperature synthesis.
+  // fabricated cosine-temperature synthesis. Optional meteo parameters
+  // (wind/solar/pressure) stay null when the provider omits them — no
+  // invented 12.5 km/h / 420 W/m² / 1012 hPa stand-ins.
   const timelinePoints = useMemo(() => {
     if (activeForecast?.hourly?.time && activeForecast.hourly.time.length >= 120) {
       const h = activeForecast.hourly;
+      const num = (arr: number[] | undefined, i: number): number | null =>
+        Array.isArray(arr) && typeof arr[i] === 'number' && Number.isFinite(arr[i]) ? arr[i] : null;
       return h.time.map((isoTime, i) => {
         const temp = Math.round(h.temperature_2m[i] * 10) / 10;
         const hum = Math.round(h.relative_humidity_2m[i]);
         const hi = calculateHeatIndex(temp, hum);
         const wbgt = calculateWBGT(temp, hum);
-        const apparent = Math.round((h.apparent_temperature[i] || hi) * 10) / 10;
-        const wind = h.wind_speed_10m ? Math.round(h.wind_speed_10m[i] * 10) / 10 : 12.5;
-        const solar = h.direct_normal_irradiance ? Math.round(h.direct_normal_irradiance[i]) : 420;
-        const pressure = h.surface_pressure ? Math.round(h.surface_pressure[i]) : 1012;
+        const apparentVal = num(h.apparent_temperature, i);
+        const apparent = apparentVal != null ? Math.round(apparentVal * 10) / 10 : Math.round(hi * 10) / 10;
 
         return {
           index: i,
@@ -100,9 +102,9 @@ export default function ForecastPage() {
           heatIndex: hi,
           wbgt,
           utciProxy: apparent,
-          windSpeed: wind,
-          solarIrradiance: solar,
-          surfacePressure: pressure,
+          windSpeed: num(h.wind_speed_10m, i) != null ? Math.round((num(h.wind_speed_10m, i) as number) * 10) / 10 : null,
+          solarIrradiance: num(h.direct_normal_irradiance, i) != null ? Math.round(num(h.direct_normal_irradiance, i) as number) : null,
+          surfacePressure: num(h.surface_pressure, i) != null ? Math.round(num(h.surface_pressure, i) as number) : null,
         };
       });
     }
@@ -144,6 +146,16 @@ export default function ForecastPage() {
   const activePoint = timelinePoints.length > 0
     ? timelinePoints[Math.min(selectedHourIndex, timelinePoints.length - 1)]
     : null;
+
+  // Publish the scrubbed/selected forecast hour to the global store so the
+  // City Overview map and drawer can honor SELECTED FORECAST mode with the
+  // exact same hour (real data, not a visual highlight).
+  const activePointTime = activePoint?.time ?? null;
+  useEffect(() => {
+    if (activePointTime) {
+      heatPulseActions.setSelectedValidTime(activePointTime);
+    }
+  }, [activePointTime]);
 
   // Daily statistics for 5 days
   const dailySummary = useMemo(() => {
@@ -465,7 +477,7 @@ export default function ForecastPage() {
                   <span className="text-[10px] text-zinc-500 uppercase font-semibold block">
                     10m Wind Speed
                   </span>
-                  <div className="text-lg font-bold text-zinc-900">{activePoint.windSpeed} km/h</div>
+                  <div className="text-lg font-bold text-zinc-900">{activePoint.windSpeed != null ? `${activePoint.windSpeed} km/h` : '—'}</div>
                   <span className="text-[10px] text-zinc-500">Convective heat ventilation</span>
                 </div>
               </div>
@@ -479,7 +491,7 @@ export default function ForecastPage() {
                     Solar Irradiance
                   </span>
                   <div className="text-lg font-bold text-zinc-900">
-                    {activePoint.solarIrradiance} W/m²
+                    {activePoint.solarIrradiance != null ? `${activePoint.solarIrradiance} W/m²` : '—'}
                   </div>
                   <span className="text-[10px] text-zinc-500">Direct normal radiation</span>
                 </div>
@@ -494,11 +506,16 @@ export default function ForecastPage() {
                     Surface Pressure
                   </span>
                   <div className="text-lg font-bold text-zinc-900">
-                    {activePoint.surfacePressure} hPa
+                    {activePoint.surfacePressure != null ? `${activePoint.surfacePressure} hPa` : '—'}
                   </div>
                   <span className="text-[10px] text-zinc-500">Barometric surface level</span>
                 </div>
               </div>
+            </div>
+          )}
+          {expandMeteo && !activePoint && (
+            <div className="p-5 border-t border-zinc-200 text-xs text-zinc-600">
+              Meteorological parameters unavailable — waiting for ward-centroid NWP data.
             </div>
           )}
         </section>

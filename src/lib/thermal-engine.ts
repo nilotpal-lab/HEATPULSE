@@ -27,6 +27,7 @@ import {
 import {
   classifyHeatCondition,
   classifyThermalStress,
+  THERMAL_STRESS_THRESHOLDS,
 } from './threshold-config';
 
 // Single authoritative re-export for consumers; implementations live in
@@ -121,16 +122,18 @@ export function approximateUTCI(
  * Legacy risk level classification mapping for backward compatibility with existing UI components.
  * NOTE: classifyHeatCondition and classifyThermalStress are NOT defined here —
  * they are imported and re-exported from threshold-config.ts at the top of this file.
+ * Band numerics reference THERMAL_STRESS_THRESHOLDS (single source of truth).
  */
 export function classifyRisk(heatIndex: number): {
   level: RiskLevel;
   label: string;
   color: string;
 } {
+  const t = THERMAL_STRESS_THRESHOLDS;
   if (heatIndex >= 54) return { level: 'danger', label: 'Danger', color: '#dc2626' };
-  if (heatIndex >= 41) return { level: 'extreme', label: 'Extreme Danger', color: '#ea580c' };
-  if (heatIndex >= 32) return { level: 'high', label: 'High Danger', color: '#f59e0b' };
-  if (heatIndex >= 27) return { level: 'moderate', label: 'Moderate', color: '#3b82f6' };
+  if (heatIndex >= t.severeHi) return { level: 'extreme', label: 'Extreme Danger', color: '#ea580c' };
+  if (heatIndex >= t.highHi) return { level: 'high', label: 'High Danger', color: '#f59e0b' };
+  if (heatIndex >= t.moderateHi) return { level: 'moderate', label: 'Moderate', color: '#3b82f6' };
   return { level: 'low', label: 'Low', color: '#22c55e' };
 }
 

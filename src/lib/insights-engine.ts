@@ -3,7 +3,7 @@
  * Standard: SIH26083 MoES / NCMRWF Master Build Specification
  * 
  * Scientific Integrity & Data Honesty (Requirement R5):
- * - Analyzes observed and NWP-projected meteorological patterns only.
+ * - Analyzes NWP-projected meteorological patterns only (no field observations).
  * - Identifies diurnal trajectories, nocturnal cooling rates, and thermal stress persistence.
  * - Strictly non-causal: zero synthetic mortality figures, zero hospital casualty claims,
  *   and zero unsupported epidemiological causal assertions.
@@ -11,6 +11,7 @@
 
 import { WardWeatherForecast, CityForecastRun } from '../types/weather';
 import { calculateHeatIndex, calculateWBGT } from './thermal-engine';
+import { THERMAL_STRESS_THRESHOLDS } from './threshold-config';
 
 export type InsightCategory =
   | 'diurnal_trajectory'
@@ -153,14 +154,14 @@ export function analyzeThermalPersistence(
     const penalty = hi - t;
     if (penalty > maxPenalty) maxPenalty = penalty;
 
-    if (hi >= 32.0) {
+    if (hi >= THERMAL_STRESS_THRESHOLDS.highHi) {
       curRun32++;
       if (curRun32 > maxRun32) maxRun32 = curRun32;
     } else {
       curRun32 = 0;
     }
 
-    if (hi >= 41.0) {
+    if (hi >= THERMAL_STRESS_THRESHOLDS.severeHi) {
       curRun41++;
       if (curRun41 > maxRun41) maxRun41 = curRun41;
     } else {
@@ -225,7 +226,7 @@ export function generateWardDescriptiveInsights(
         severity: 'advisory',
         headline: 'Tropical Night: Impaired Nocturnal Cooling Window',
         summary: `Minimum nocturnal temperature remains elevated at ${today.nighttime_min_c}°C (>= 25°C threshold), restricting physiological heat dissipation.`,
-        meteorological_evidence: `Overnight thermal persistence observed between 22:00 and 06:00 IST where ambient air fails to drop below 25°C.`,
+        meteorological_evidence: `Overnight thermal persistence projected by the NWP forecast between 22:00 and 06:00 IST where ambient air fails to drop below 25°C.`,
         affected_scope: wardForecast.ward_name,
         observed_metric: {
           label: 'Nocturnal Minimum',
@@ -243,7 +244,7 @@ export function generateWardDescriptiveInsights(
       category: 'humidity_amplification',
       severity: 'warning',
       headline: `Atmospheric Moisture Elevates Heat Index by +${persistence.humidity_penalty_c}°C`,
-      summary: `High atmospheric water vapor pressure significantly elevates apparent physiological strain above measured dry-bulb temperature.`,
+      summary: `High atmospheric water vapor pressure significantly elevates apparent physiological strain above forecast dry-bulb temperature.`,
       meteorological_evidence: `NOAA Rothfusz regression calculates peak Heat Index of ${persistence.peak_heat_index}°C compared to peak dry-bulb temperature.`,
       affected_scope: wardForecast.ward_name,
       observed_metric: {
@@ -332,7 +333,7 @@ export function generateCityDescriptiveInsights(
       category: 'nocturnal_heat',
       severity: 'advisory',
       headline: `${tropicalNightCount} of ${wardEntries.length} Wards Exhibit Tropical Night Patterns`,
-      summary: `Microclimate night-time temperatures stay at or above 25°C, reducing night-time physiological cooling for residents.`,
+      summary: `Local night-time temperatures stay at or above 25°C, reducing night-time physiological cooling for residents.`,
       meteorological_evidence: `Minimum temperatures in the 22:00-06:00 window sustained at >= 25°C across urban core centroids.`,
       affected_scope: `${cityRun.city_id.toUpperCase()} Urban Core`,
       observed_metric: {

@@ -61,6 +61,7 @@ import {
   classifyHeatCondition,
   classifyThermalStress,
 } from '@/lib/threshold-config';
+import type { TemporalWardMetrics } from '@/lib/temporal-modes';
 import {
   createBhuvanBasemapController,
   getBhuvanLayerForScope,
@@ -99,6 +100,14 @@ export interface MapContainerProps {
   isNational?: boolean;
   bhuvanLayer?: string; // e.g. 'lulc:BR_LULC50K_1112'
   wardRisks?: WardRisk[];
+  /**
+   * Mode-resolved metrics (CURRENT / SELECTED FORECAST / PEAK). When present
+   * these take precedence over wardRisks so the map colors follow the active
+   * temporal mode — the mode changes data, not just a border.
+   */
+  temporalMetrics?: Record<string, TemporalWardMetrics>;
+  /** Label of the active temporal mode, shown on the map chrome. */
+  temporalModeLabel?: string;
   selectedWard?: string | null;
   selectedWardId?: string | null;
   selectedCity?: CityId | string;
@@ -118,6 +127,8 @@ export default function MapContainer({
   isNational = false,
   bhuvanLayer: propBhuvanLayer,
   wardRisks = [],
+  temporalMetrics,
+  temporalModeLabel: propTemporalModeLabel,
   selectedWard = null,
   selectedWardId: propSelectedWardId,
   selectedCity = 'pune',
@@ -169,7 +180,9 @@ export default function MapContainer({
   // Resolved selected ward identifier (matches name or ID)
   const effectiveSelectedWard = propSelectedWardId || selectedWard || localSelectedWard;
 
-  // Memoized ward risk lookup index for O(1) hover lookups
+  // Memoized ward risk lookup index for O(1) hover lookups.
+  // When temporalMetrics (mode-resolved values) are provided, they REPLACE the
+  // per-ward current-hour values so every surface follows the active mode.
   const wardRiskMap = React.useMemo(() => {
     const map: Record<string, WardRisk> = {};
     wardRisks.forEach((r) => {
@@ -187,8 +200,49 @@ export default function MapContainer({
         map[lowerId.replace(/[^a-z0-9]/g, '')] = r;
       }
     });
+
+    if (temporalMetrics) {
+      const original: Record<string, WardRisk> = {};
+      // Index the raw risk rows first so temporal overrides can inherit
+      // provenance fields (vulnerability etc.) from the same ward.
+      wardRisks.forEach((r) => {
+        const keys = [r.wardId || r.ward_id, r.wardName || r.ward_name];
+        keys.forEach((k) => {
+          if (k) original[k.toLowerCase().trim()] = r;
+        });
+      });
+
+      Object.entries(temporalMetrics).forEach(([key, m]) => {
+        const base = original[m.wardId] || original[m.wardName] || original[key];
+        const resolved: WardRisk = {
+          ...(base ?? {}),
+          wardId: m.wardId,
+          ward_id: m.wardId,
+          wardName: m.wardName,
+          ward_name: m.wardName,
+          currentTemp: m.temperature ?? undefined,
+          currentHumidity: m.humidity ?? undefined,
+          heatIndex: m.heatIndex ?? undefined,
+          wbgt: m.wbgt ?? undefined,
+          heatCondition: m.heatCondition ?? undefined,
+          heat_condition: m.heatCondition ?? undefined,
+          thermalStress: m.thermalStress ?? undefined,
+          thermal_stress: m.thermalStress ?? undefined,
+          compositeRisk: m.compositeRisk ?? undefined,
+          composite_risk: m.compositeRisk ?? undefined,
+          compositeRiskLevel: m.compositeRiskLevel ?? undefined,
+          composite_risk_level: m.compositeRiskLevel ?? undefined,
+          vulnerabilityScore: m.vulnerabilityScore ?? (base?.vulnerabilityScore),
+        };
+        const lower = key.toLowerCase().trim();
+        map[lower] = resolved;
+        map[lower.replace(/^admin ward \d+\s*/i, '')] = resolved;
+        map[lower.replace(/[^a-z0-9]/g, '')] = resolved;
+      });
+    }
+
     return map;
-  }, [wardRisks]);
+  }, [wardRisks, temporalMetrics]);
 
   const wardRiskMapRef = useRef(wardRiskMap);
   const activeLayerRef = useRef(effectiveActiveLayer);
@@ -536,9 +590,9 @@ export default function MapContainer({
 
           if (metric) {
             if (metric.source === 'metro_ward_peak' && metric.monitoredCities && metric.monitoredCities.length > 0) {
-              subtext = `Monitored Metros: ${metric.monitoredCities.join(', ')} (Peak Ward Telemetry)`;
+              subtext = `Monitored Metros: ${metric.monitoredCities.join(', ')} (peak ward NWP forecast)`;
             } else if (metric.capital) {
-              subtext = `State Capital NWP Telemetry (${metric.capital})`;
+              subtext = `State capital NWP forecast (${metric.capital})`;
             }
 
             if (currentLayer === 'heat_conditions') {
@@ -590,7 +644,7 @@ export default function MapContainer({
             badgeBg = 'bg-slate-100';
             badgeText = 'text-slate-700';
             badgeBorder = 'border-slate-300';
-            subtext = 'Regional baseline (unmonitored). Municipal telemetry active in 6 metro regions.';
+            subtext = 'Regional baseline (unmonitored). Ward-level NWP forecasts active in 6 metro regions.';
           }
 
           setHoverTooltip({
@@ -815,7 +869,7 @@ export default function MapContainer({
     map.addLayer(newStatesLayer);
   }, [indiaStatesGeoJSON, stateMetrics, effectiveActiveLayer]);
 
-  // Update City Markers Layer with live telemetry
+  // Update City Markers Layer with current NWP-derived telemetry
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -948,7 +1002,7 @@ export default function MapContainer({
                 </div>
               ) : (
                 <div className="text-[11px] text-zinc-500 pt-0.5 leading-snug">
-                  <span>{hoverTooltip.subtext || 'Regional baseline (unmonitored). Municipal telemetry active in 6 metro regions.'}</span>
+                  <span>{hoverTooltip.subtext || 'Regional baseline (unmonitored). Ward-level NWP forecasts active in 6 metro regions.'}</span>
                 </div>
               )}
             </div>
@@ -1085,6 +1139,20 @@ export default function MapContainer({
           <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${lodInfo.color}`}>
             {lodInfo.label}
           </span>
+          {propTemporalModeLabel && (
+            <span
+              className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${
+                propTemporalModeLabel === 'FORECAST PEAK'
+                  ? 'bg-red-50 text-red-700 border-red-200'
+                  : propTemporalModeLabel === 'SELECTED FORECAST'
+                  ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                  : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+              }`}
+              title={`Map values follow the ${propTemporalModeLabel} temporal mode`}
+            >
+              ● {propTemporalModeLabel}
+            </span>
+          )}
           {currentZoom < 8 && (
             <span className="text-[10px] text-zinc-400">(Zoom in to see ward boundaries)</span>
           )}
