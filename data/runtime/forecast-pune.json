@@ -1,11 +1,11 @@
 {
   "city_id": "pune",
   "run_time": "2026-09-11T06:00:00Z",
-  "fetched_at": "2026-09-11T10:13:49.987Z",
+  "fetched_at": "2026-09-11T10:32:40.322Z",
   "metadata": {
     "run_time": "2026-09-11T06:00:00Z",
-    "fetched_at": "2026-09-11T10:13:49.987Z",
-    "valid_time": "2026-09-11T15:00",
+    "fetched_at": "2026-09-11T10:32:40.322Z",
+    "valid_time": "2026-09-11T16:00",
     "provider": "Open-Meteo NWP Grid",
     "model": "ECMWF IFS / GFS Seamless",
     "status": "fresh",
@@ -22,15 +22,15 @@
       ],
       "elevation": 577,
       "current": {
-        "time": "2026-09-11T15:00",
-        "temperature_2m": 27.5,
-        "relative_humidity_2m": 62,
-        "apparent_temperature": 29.7,
-        "wind_speed_10m": 15.5,
-        "direct_normal_irradiance": 671.1,
-        "shortwave_radiation": 692,
+        "time": "2026-09-11T16:00",
+        "temperature_2m": 27,
+        "relative_humidity_2m": 68,
+        "apparent_temperature": 29.1,
+        "wind_speed_10m": 13.6,
+        "direct_normal_irradiance": 429.3,
+        "shortwave_radiation": 432,
         "surface_pressure": 944.5,
-        "weather_code": 53
+        "weather_code": 51
       },
       "hourly": {
         "time": [
@@ -1134,8 +1134,8 @@
       },
       "metadata": {
         "run_time": "2026-09-11T06:00:00Z",
-        "fetched_at": "2026-09-11T10:13:49.987Z",
-        "valid_time": "2026-09-11T15:00",
+        "fetched_at": "2026-09-11T10:32:40.322Z",
+        "valid_time": "2026-09-11T16:00",
         "provider": "Open-Meteo NWP Grid",
         "model": "ECMWF IFS / GFS Seamless",
         "status": "fresh",
@@ -1153,15 +1153,15 @@
       ],
       "elevation": 576,
       "current": {
-        "time": "2026-09-11T15:00",
-        "temperature_2m": 29.2,
-        "relative_humidity_2m": 52,
-        "apparent_temperature": 30.8,
-        "wind_speed_10m": 14.8,
-        "direct_normal_irradiance": 664.1,
-        "shortwave_radiation": 686,
-        "surface_pressure": 944.7,
-        "weather_code": 1
+        "time": "2026-09-11T16:00",
+        "temperature_2m": 28.1,
+        "relative_humidity_2m": 58,
+        "apparent_temperature": 29.5,
+        "wind_speed_10m": 14.1,
+        "direct_normal_irradiance": 478.3,
+        "shortwave_radiation": 452,
+        "surface_pressure": 944.5,
+        "weather_code": 51
       },
       "hourly": {
         "time": [
@@ -2265,8 +2265,8 @@
       },
       "metadata": {
         "run_time": "2026-09-11T06:00:00Z",
-        "fetched_at": "2026-09-11T10:13:49.987Z",
-        "valid_time": "2026-09-11T15:00",
+        "fetched_at": "2026-09-11T10:32:40.322Z",
+        "valid_time": "2026-09-11T16:00",
         "provider": "Open-Meteo NWP Grid",
         "model": "ECMWF IFS / GFS Seamless",
         "status": "fresh",
@@ -2284,15 +2284,15 @@
       ],
       "elevation": 610,
       "current": {
-        "time": "2026-09-11T15:00",
-        "temperature_2m": 27.5,
-        "relative_humidity_2m": 62,
-        "apparent_temperature": 29.7,
-        "wind_speed_10m": 15.5,
-        "direct_normal_irradiance": 671.1,
-        "shortwave_radiation": 692,
+        "time": "2026-09-11T16:00",
+        "temperature_2m": 27,
+        "relative_humidity_2m": 68,
+        "apparent_temperature": 29.1,
+        "wind_speed_10m": 13.6,
+        "direct_normal_irradiance": 429.3,
+        "shortwave_radiation": 432,
         "surface_pressure": 941,
-        "weather_code": 53
+        "weather_code": 51
       },
       "hourly": {
         "time": [
@@ -3396,8 +3396,8 @@
       },
       "metadata": {
         "run_time": "2026-09-11T06:00:00Z",
-        "fetched_at": "2026-09-11T10:13:49.987Z",
-        "valid_time": "2026-09-11T15:00",
+        "fetched_at": "2026-09-11T10:32:40.322Z",
+        "valid_time": "2026-09-11T16:00",
         "provider": "Open-Meteo NWP Grid",
         "model": "ECMWF IFS / GFS Seamless",
         "status": "fresh",
@@ -3415,15 +3415,15 @@
       ],
       "elevation": 584,
       "current": {
-        "time": "2026-09-11T15:00",
-        "temperature_2m": 27.7,
-        "relative_humidity_2m": 63,
-        "apparent_temperature": 29.9,
-        "wind_speed_10m": 15.5,
-        "direct_normal_irradiance": 671.1,
-        "shortwave_radiation": 692,
+        "time": "2026-09-11T16:00",
+        "temperature_2m": 27.1,
+        "relative_humidity_2m": 68,
+        "apparent_temperature": 29.3,
+        "wind_speed_10m": 13.6,
+        "direct_normal_irradiance": 429.3,
+        "shortwave_radiation": 432,
         "surface_pressure": 943.8,
-        "weather_code": 53
+        "weather_code": 51
       },
       "hourly": {
         "time": [
@@ -4527,8 +4527,8 @@
       },
       "metadata": {
         "run_time": "2026-09-11T06:00:00Z",
-        "fetched_at": "2026-09-11T10:13:49.987Z",
-        "valid_time": "2026-09-11T15:00",
+        "fetched_at": "2026-09-11T10:32:40.322Z",
+        "valid_time": "2026-09-11T16:00",
         "provider": "Open-Meteo NWP Grid",
         "model": "ECMWF IFS / GFS Seamless",
         "status": "fresh",
@@ -4546,15 +4546,15 @@
       ],
       "elevation": 560,
       "current": {
-        "time": "2026-09-11T15:00",
-        "temperature_2m": 29.2,
-        "relative_humidity_2m": 52,
-        "apparent_temperature": 30.8,
-        "wind_speed_10m": 14.8,
-        "direct_normal_irradiance": 664.1,
-        "shortwave_radiation": 686,
-        "surface_pressure": 946.4,
-        "weather_code": 1
+        "time": "2026-09-11T16:00",
+        "temperature_2m": 28.1,
+        "relative_humidity_2m": 58,
+        "apparent_temperature": 29.5,
+        "wind_speed_10m": 14.1,
+        "direct_normal_irradiance": 478.3,
+        "shortwave_radiation": 452,
+        "surface_pressure": 946.2,
+        "weather_code": 51
       },
       "hourly": {
         "time": [
@@ -5658,8 +5658,8 @@
       },
       "metadata": {
         "run_time": "2026-09-11T06:00:00Z",
-        "fetched_at": "2026-09-11T10:13:49.987Z",
-        "valid_time": "2026-09-11T15:00",
+        "fetched_at": "2026-09-11T10:32:40.322Z",
+        "valid_time": "2026-09-11T16:00",
         "provider": "Open-Meteo NWP Grid",
         "model": "ECMWF IFS / GFS Seamless",
         "status": "fresh",
@@ -5677,15 +5677,15 @@
       ],
       "elevation": 577,
       "current": {
-        "time": "2026-09-11T15:00",
-        "temperature_2m": 30,
-        "relative_humidity_2m": 52,
-        "apparent_temperature": 31.8,
-        "wind_speed_10m": 14.9,
-        "direct_normal_irradiance": 655.9,
-        "shortwave_radiation": 673,
-        "surface_pressure": 944.1,
-        "weather_code": 51
+        "time": "2026-09-11T16:00",
+        "temperature_2m": 28.7,
+        "relative_humidity_2m": 58,
+        "apparent_temperature": 30,
+        "wind_speed_10m": 15.5,
+        "direct_normal_irradiance": 515.7,
+        "shortwave_radiation": 467,
+        "surface_pressure": 944,
+        "weather_code": 53
       },
       "hourly": {
         "time": [
@@ -6789,8 +6789,8 @@
       },
       "metadata": {
         "run_time": "2026-09-11T06:00:00Z",
-        "fetched_at": "2026-09-11T10:13:49.987Z",
-        "valid_time": "2026-09-11T15:00",
+        "fetched_at": "2026-09-11T10:32:40.322Z",
+        "valid_time": "2026-09-11T16:00",
         "provider": "Open-Meteo NWP Grid",
         "model": "ECMWF IFS / GFS Seamless",
         "status": "fresh",
@@ -6808,15 +6808,15 @@
       ],
       "elevation": 566,
       "current": {
-        "time": "2026-09-11T15:00",
-        "temperature_2m": 30,
-        "relative_humidity_2m": 52,
-        "apparent_temperature": 31.8,
-        "wind_speed_10m": 14.9,
-        "direct_normal_irradiance": 655.9,
-        "shortwave_radiation": 673,
+        "time": "2026-09-11T16:00",
+        "temperature_2m": 28.7,
+        "relative_humidity_2m": 58,
+        "apparent_temperature": 30,
+        "wind_speed_10m": 15.5,
+        "direct_normal_irradiance": 515.7,
+        "shortwave_radiation": 467,
         "surface_pressure": 945.2,
-        "weather_code": 51
+        "weather_code": 53
       },
       "hourly": {
         "time": [
@@ -7920,8 +7920,8 @@
       },
       "metadata": {
         "run_time": "2026-09-11T06:00:00Z",
-        "fetched_at": "2026-09-11T10:13:49.987Z",
-        "valid_time": "2026-09-11T15:00",
+        "fetched_at": "2026-09-11T10:32:40.322Z",
+        "valid_time": "2026-09-11T16:00",
         "provider": "Open-Meteo NWP Grid",
         "model": "ECMWF IFS / GFS Seamless",
         "status": "fresh",
@@ -7939,15 +7939,15 @@
       ],
       "elevation": 570,
       "current": {
-        "time": "2026-09-11T15:00",
-        "temperature_2m": 29.2,
-        "relative_humidity_2m": 52,
-        "apparent_temperature": 30.8,
-        "wind_speed_10m": 14.8,
-        "direct_normal_irradiance": 664.1,
-        "shortwave_radiation": 686,
-        "surface_pressure": 945.3,
-        "weather_code": 1
+        "time": "2026-09-11T16:00",
+        "temperature_2m": 28.1,
+        "relative_humidity_2m": 58,
+        "apparent_temperature": 29.5,
+        "wind_speed_10m": 14.1,
+        "direct_normal_irradiance": 478.3,
+        "shortwave_radiation": 452,
+        "surface_pressure": 945.2,
+        "weather_code": 51
       },
       "hourly": {
         "time": [
@@ -9051,8 +9051,8 @@
       },
       "metadata": {
         "run_time": "2026-09-11T06:00:00Z",
-        "fetched_at": "2026-09-11T10:13:49.987Z",
-        "valid_time": "2026-09-11T15:00",
+        "fetched_at": "2026-09-11T10:32:40.322Z",
+        "valid_time": "2026-09-11T16:00",
         "provider": "Open-Meteo NWP Grid",
         "model": "ECMWF IFS / GFS Seamless",
         "status": "fresh",
@@ -9070,14 +9070,14 @@
       ],
       "elevation": 576,
       "current": {
-        "time": "2026-09-11T15:00",
-        "temperature_2m": 27.6,
-        "relative_humidity_2m": 65,
-        "apparent_temperature": 29.8,
-        "wind_speed_10m": 15.1,
-        "direct_normal_irradiance": 539.7,
-        "shortwave_radiation": 624,
-        "surface_pressure": 945,
+        "time": "2026-09-11T16:00",
+        "temperature_2m": 27,
+        "relative_humidity_2m": 70,
+        "apparent_temperature": 29.4,
+        "wind_speed_10m": 14.2,
+        "direct_normal_irradiance": 467.4,
+        "shortwave_radiation": 449,
+        "surface_pressure": 944.8,
         "weather_code": 51
       },
       "hourly": {
@@ -10182,8 +10182,8 @@
       },
       "metadata": {
         "run_time": "2026-09-11T06:00:00Z",
-        "fetched_at": "2026-09-11T10:13:49.987Z",
-        "valid_time": "2026-09-11T15:00",
+        "fetched_at": "2026-09-11T10:32:40.322Z",
+        "valid_time": "2026-09-11T16:00",
         "provider": "Open-Meteo NWP Grid",
         "model": "ECMWF IFS / GFS Seamless",
         "status": "fresh",
@@ -10201,15 +10201,15 @@
       ],
       "elevation": 587,
       "current": {
-        "time": "2026-09-11T15:00",
-        "temperature_2m": 29.2,
-        "relative_humidity_2m": 52,
-        "apparent_temperature": 30.8,
-        "wind_speed_10m": 14.8,
-        "direct_normal_irradiance": 664.1,
-        "shortwave_radiation": 686,
-        "surface_pressure": 943.5,
-        "weather_code": 1
+        "time": "2026-09-11T16:00",
+        "temperature_2m": 28.1,
+        "relative_humidity_2m": 58,
+        "apparent_temperature": 29.5,
+        "wind_speed_10m": 14.1,
+        "direct_normal_irradiance": 478.3,
+        "shortwave_radiation": 452,
+        "surface_pressure": 943.4,
+        "weather_code": 51
       },
       "hourly": {
         "time": [
@@ -11313,8 +11313,8 @@
       },
       "metadata": {
         "run_time": "2026-09-11T06:00:00Z",
-        "fetched_at": "2026-09-11T10:13:49.987Z",
-        "valid_time": "2026-09-11T15:00",
+        "fetched_at": "2026-09-11T10:32:40.322Z",
+        "valid_time": "2026-09-11T16:00",
         "provider": "Open-Meteo NWP Grid",
         "model": "ECMWF IFS / GFS Seamless",
         "status": "fresh",
@@ -11332,14 +11332,14 @@
       ],
       "elevation": 646,
       "current": {
-        "time": "2026-09-11T15:00",
-        "temperature_2m": 27.5,
-        "relative_humidity_2m": 61,
-        "apparent_temperature": 29.3,
-        "wind_speed_10m": 15.1,
-        "direct_normal_irradiance": 564.8,
-        "shortwave_radiation": 642,
-        "surface_pressure": 937.3,
+        "time": "2026-09-11T16:00",
+        "temperature_2m": 26.6,
+        "relative_humidity_2m": 66,
+        "apparent_temperature": 28.2,
+        "wind_speed_10m": 14.8,
+        "direct_normal_irradiance": 493.2,
+        "shortwave_radiation": 456,
+        "surface_pressure": 937.2,
         "weather_code": 51
       },
       "hourly": {
@@ -12444,8 +12444,8 @@
       },
       "metadata": {
         "run_time": "2026-09-11T06:00:00Z",
-        "fetched_at": "2026-09-11T10:13:49.987Z",
-        "valid_time": "2026-09-11T15:00",
+        "fetched_at": "2026-09-11T10:32:40.322Z",
+        "valid_time": "2026-09-11T16:00",
         "provider": "Open-Meteo NWP Grid",
         "model": "ECMWF IFS / GFS Seamless",
         "status": "fresh",
@@ -12463,15 +12463,15 @@
       ],
       "elevation": 564,
       "current": {
-        "time": "2026-09-11T15:00",
-        "temperature_2m": 29.2,
-        "relative_humidity_2m": 52,
-        "apparent_temperature": 30.8,
-        "wind_speed_10m": 14.8,
-        "direct_normal_irradiance": 664.1,
-        "shortwave_radiation": 686,
-        "surface_pressure": 945.9,
-        "weather_code": 1
+        "time": "2026-09-11T16:00",
+        "temperature_2m": 28.1,
+        "relative_humidity_2m": 58,
+        "apparent_temperature": 29.5,
+        "wind_speed_10m": 14.1,
+        "direct_normal_irradiance": 478.3,
+        "shortwave_radiation": 452,
+        "surface_pressure": 945.8,
+        "weather_code": 51
       },
       "hourly": {
         "time": [
@@ -13575,8 +13575,8 @@
       },
       "metadata": {
         "run_time": "2026-09-11T06:00:00Z",
-        "fetched_at": "2026-09-11T10:13:49.987Z",
-        "valid_time": "2026-09-11T15:00",
+        "fetched_at": "2026-09-11T10:32:40.322Z",
+        "valid_time": "2026-09-11T16:00",
         "provider": "Open-Meteo NWP Grid",
         "model": "ECMWF IFS / GFS Seamless",
         "status": "fresh",
@@ -13594,15 +13594,15 @@
       ],
       "elevation": 584,
       "current": {
-        "time": "2026-09-11T15:00",
-        "temperature_2m": 30.3,
-        "relative_humidity_2m": 50,
-        "apparent_temperature": 31.8,
-        "wind_speed_10m": 15.4,
-        "direct_normal_irradiance": 627.5,
-        "shortwave_radiation": 665,
-        "surface_pressure": 943.6,
-        "weather_code": 0
+        "time": "2026-09-11T16:00",
+        "temperature_2m": 29,
+        "relative_humidity_2m": 54,
+        "apparent_temperature": 29.9,
+        "wind_speed_10m": 15.9,
+        "direct_normal_irradiance": 529.1,
+        "shortwave_radiation": 472,
+        "surface_pressure": 943.4,
+        "weather_code": 51
       },
       "hourly": {
         "time": [
@@ -14706,8 +14706,8 @@
       },
       "metadata": {
         "run_time": "2026-09-11T06:00:00Z",
-        "fetched_at": "2026-09-11T10:13:49.987Z",
-        "valid_time": "2026-09-11T15:00",
+        "fetched_at": "2026-09-11T10:32:40.322Z",
+        "valid_time": "2026-09-11T16:00",
         "provider": "Open-Meteo NWP Grid",
         "model": "ECMWF IFS / GFS Seamless",
         "status": "fresh",
@@ -14725,14 +14725,14 @@
       ],
       "elevation": 665,
       "current": {
-        "time": "2026-09-11T15:00",
-        "temperature_2m": 27.5,
-        "relative_humidity_2m": 61,
-        "apparent_temperature": 29.3,
-        "wind_speed_10m": 15.1,
-        "direct_normal_irradiance": 564.8,
-        "shortwave_radiation": 642,
-        "surface_pressure": 935.3,
+        "time": "2026-09-11T16:00",
+        "temperature_2m": 26.6,
+        "relative_humidity_2m": 66,
+        "apparent_temperature": 28.2,
+        "wind_speed_10m": 14.8,
+        "direct_normal_irradiance": 493.2,
+        "shortwave_radiation": 456,
+        "surface_pressure": 935.2,
         "weather_code": 51
       },
       "hourly": {
@@ -15837,8 +15837,8 @@
       },
       "metadata": {
         "run_time": "2026-09-11T06:00:00Z",
-        "fetched_at": "2026-09-11T10:13:49.987Z",
-        "valid_time": "2026-09-11T15:00",
+        "fetched_at": "2026-09-11T10:32:40.322Z",
+        "valid_time": "2026-09-11T16:00",
         "provider": "Open-Meteo NWP Grid",
         "model": "ECMWF IFS / GFS Seamless",
         "status": "fresh",
@@ -15856,15 +15856,15 @@
       ],
       "elevation": 603,
       "current": {
-        "time": "2026-09-11T15:00",
-        "temperature_2m": 29.2,
-        "relative_humidity_2m": 52,
-        "apparent_temperature": 30.9,
-        "wind_speed_10m": 14.8,
-        "direct_normal_irradiance": 664.1,
-        "shortwave_radiation": 686,
-        "surface_pressure": 941.8,
-        "weather_code": 1
+        "time": "2026-09-11T16:00",
+        "temperature_2m": 28.2,
+        "relative_humidity_2m": 58,
+        "apparent_temperature": 29.6,
+        "wind_speed_10m": 14.1,
+        "direct_normal_irradiance": 478.3,
+        "shortwave_radiation": 452,
+        "surface_pressure": 941.7,
+        "weather_code": 51
       },
       "hourly": {
         "time": [
@@ -16968,8 +16968,8 @@
       },
       "metadata": {
         "run_time": "2026-09-11T06:00:00Z",
-        "fetched_at": "2026-09-11T10:13:49.987Z",
-        "valid_time": "2026-09-11T15:00",
+        "fetched_at": "2026-09-11T10:32:40.322Z",
+        "valid_time": "2026-09-11T16:00",
         "provider": "Open-Meteo NWP Grid",
         "model": "ECMWF IFS / GFS Seamless",
         "status": "fresh",
@@ -16978,6 +16978,6 @@
       "attribution": "Ward-localized forecast derived from numerical weather prediction"
     }
   },
-  "cached_at": 1789121629988,
-  "expires_at": 1789122529988
+  "cached_at": 1789122760324,
+  "expires_at": 1789123660324
 }

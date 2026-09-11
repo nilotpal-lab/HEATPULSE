@@ -36,7 +36,7 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     id: 'city',
     label: 'City Overview',
     href: '/',
-    description: 'Primary operational screen: 3-block summary, ward map & 5-day outlook',
+    description: 'Primary operational screen: 2-block summary, ward map & 5-day outlook',
   },
   {
     id: 'forecast',
