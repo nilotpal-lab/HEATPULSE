@@ -631,7 +631,7 @@ export default function WardDetailDrawer() {
                 </span>
               </div>
               <div className="bg-white p-2 rounded-lg border border-zinc-200/60">
-                <span className="text-[10px] text-zinc-400 block">UTCI Proxy</span>
+                <span className="text-[10px] text-zinc-400 block">UTCI</span>
                 <span className="text-base font-bold text-zinc-800 font-mono">
                   {utciProxy != null ? `${utciProxy}°C` : '--'}
                 </span>

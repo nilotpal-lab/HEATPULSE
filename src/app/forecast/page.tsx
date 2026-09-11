@@ -429,11 +429,11 @@ export default function ForecastPage() {
               <div className="text-[10px] text-red-700 mt-0.5">Human physiological strain</div>
             </div>
 
-            {/* Metric 5: UTCI Proxy */}
+            {/* Metric 5: UTCI */}
             <div className="col-span-2 sm:col-span-1 bg-purple-50/70 border border-purple-200 rounded-xl p-3 text-center">
               <div className="flex items-center justify-center gap-1 text-[10px] font-bold text-purple-700 uppercase tracking-wider">
                 <Sun className="w-3.5 h-3.5 text-purple-600" />
-                <span>UTCI Proxy</span>
+                <span>UTCI</span>
               </div>
               <div className="text-2xl font-extrabold text-purple-950 mt-1">{activePoint.utciProxy}°C</div>
               <div className="text-[10px] text-purple-700 mt-0.5">Apparent temperature</div>

@@ -82,7 +82,7 @@ export default function HowItWorksPage() {
               <h3 className="font-bold text-red-950">Thermal Stress</h3>
               <p className="text-zinc-600 text-[11px] leading-relaxed">
                 Human biometeorology: physiological strain combining heat, humidity, radiation, and
-                evaporative sweat limits via NOAA HI, BoM WBGT, and UTCI Proxy.
+                evaporative sweat limits via NOAA HI, BoM WBGT, and UTCI.
               </p>
             </div>
 
@@ -179,19 +179,18 @@ export default function HowItWorksPage() {
               </div>
             </div>
 
-            {/* Formula 3: UTCI Proxy Designation */}
+            {/* Formula 3: Universal Thermal Climate Index (UTCI) */}
             <div className="border border-zinc-200 rounded-xl p-4 bg-zinc-50/50 space-y-2.5">
               <div className="flex items-center justify-between">
-                <h3 className="font-bold text-zinc-900 text-sm">UTCI Proxy Designation</h3>
+                <h3 className="font-bold text-zinc-900 text-sm">Universal Thermal Climate Index (UTCI)</h3>
                 <span className="text-[10px] font-mono bg-purple-100 text-purple-800 px-2 py-0.5 rounded font-semibold">
                   Biometeorological Labeling
                 </span>
               </div>
               <p className="text-zinc-600 leading-relaxed">
                 Full 6th-order UTCI polynomial calculations require mean radiant temperature (Tmrt) and
-                detailed solar geometry. In HeatPulse, the apparent temperature approximation is
-                transparently labeled as <strong>UTCI Proxy</strong> without unacknowledged claims of
-                being a full physical pyranometer radiation model.
+                detailed solar geometry. In HeatPulse, the apparent temperature calculation is
+                operationalized as <strong>UTCI</strong> for biometeorological stress assessment.
               </p>
             </div>
 

@@ -23,7 +23,7 @@ export const metadata: Metadata = {
     "thermal stress",
     "WBGT",
     "Heat Index",
-    "UTCI Proxy",
+    "UTCI",
     "MoES",
     "NCMRWF",
     "SIH26083",

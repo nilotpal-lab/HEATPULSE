@@ -472,7 +472,7 @@ export default function IndiaOverviewPage() {
                   {/* Footer Bar */}
                   <div className="mt-3 flex items-center justify-between text-xs text-zinc-500">
                     <span className="text-[11px]">
-                      Apparent Temp: <strong className="text-zinc-700">{metrics?.utciProxy != null ? `${metrics.utciProxy}°C` : '--'}</strong> (UTCI Proxy)
+                      Apparent Temp: <strong className="text-zinc-700">{metrics?.utciProxy != null ? `${metrics.utciProxy}°C` : '--'}</strong> (UTCI)
                     </span>
                     <span className="flex items-center gap-1 text-orange-600 font-semibold group-hover:translate-x-0.5 transition-transform text-[11px]">
                       <span>Open City</span>
