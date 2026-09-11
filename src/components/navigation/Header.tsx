@@ -118,19 +118,9 @@ export default function Header() {
             <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-amber-500 via-orange-600 to-red-600 flex items-center justify-center text-white shadow-sm group-hover:scale-105 transition-transform">
               <Flame className="w-5 h-5 fill-white/90 stroke-white" />
             </div>
-            <div>
-              <div className="flex items-center gap-1.5">
-                <span className="font-bold text-zinc-900 tracking-tight text-base leading-none">
-                  HeatPulse
-                </span>
-                <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.2 bg-zinc-100 text-zinc-600 rounded">
-                  India
-                </span>
-              </div>
-              <p className="text-[10px] text-zinc-500 leading-none mt-0.5">
-                Biometeorological Decision Support
-              </p>
-            </div>
+            <span className="font-bold text-zinc-900 tracking-tight text-base sm:text-lg leading-none">
+              HeatPulse
+            </span>
           </Link>
 
           {/* Vertical divider */}
