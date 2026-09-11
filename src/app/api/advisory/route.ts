@@ -14,7 +14,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getCityForecast, WeatherUnavailableError } from '@/lib/weather-service';
-import { calculateThermalCalculations, classifyThermalStress } from '@/lib/thermal-engine';
+import { calculateThermalCalculations, classifyThermalStress, wbgtEnvFromCurrent } from '@/lib/thermal-engine';
 import { assessWardRisk, getWardVulnerability } from '@/lib/risk-engine';
 import {
   generateAdvisory,
@@ -41,11 +41,13 @@ export async function GET(request: NextRequest) {
 
       const cur = wardForecast.current;
 
-      // Calculate thermal stress
+      // Calculate thermal stress (full-physics WBGT when NWP wind+solar present)
+      const env = wbgtEnvFromCurrent(wardForecast.centroid, cur);
       const thermal = calculateThermalCalculations(
         cur.temperature_2m,
         cur.relative_humidity_2m,
-        cur.apparent_temperature
+        cur.apparent_temperature,
+        env
       );
 
       const thermalStress = classifyThermalStress(thermal.heat_index, thermal.wbgt);
@@ -59,6 +61,7 @@ export async function GET(request: NextRequest) {
         humidity: cur.relative_humidity_2m,
         apparentTemperature: cur.apparent_temperature,
         forecast_metadata: wardForecast.metadata,
+        env,
       });
 
       // Get vulnerability classification

@@ -29,6 +29,71 @@ import {
   classifyThermalStress,
   THERMAL_STRESS_THRESHOLDS,
 } from './threshold-config';
+import { wbgtLiljegrenFull } from './wbgt-liljegren';
+
+// ============================================================================
+// Full-physics WBGT environment (wind + solar). All fields optional: when any
+// required input is absent, callers transparently fall back to the BoM
+// simplified WBGT and report method 'bom-simplified' (Tier-2 CHECK 12).
+// ============================================================================
+
+/** Method provenance for every WBGT value produced by this module. */
+export type WbgtMethod = 'liljegren-full' | 'bom-simplified';
+
+export interface WbgtEnv {
+  windKmh?: number; // NWP 10 m wind, km/h
+  solarGhiWm2?: number; // global horizontal irradiance (shortwave_radiation), W/m2
+  latitude?: number; // ward centroid lat, deg
+  longitude?: number; // ward centroid lon, deg
+  timeIso?: string; // hourly valid time, Asia/Kolkata wall time
+  pressureHpa?: number; // surface pressure, hPa
+}
+
+/**
+ * Builds a WbgtEnv from a cached ward forecast "current" block + centroid.
+ * Missing provider fields stay undefined — never invented stand-ins.
+ */
+export function wbgtEnvFromCurrent(
+  centroid: [number, number] | undefined,
+  current: {
+    time?: string;
+    wind_speed_10m?: number;
+    shortwave_radiation?: number;
+    surface_pressure?: number;
+  }
+): WbgtEnv {
+  return {
+    windKmh: current.wind_speed_10m,
+    solarGhiWm2: current.shortwave_radiation,
+    latitude: centroid?.[1],
+    longitude: centroid?.[0],
+    timeIso: current.time,
+    pressureHpa: current.surface_pressure,
+  };
+}
+
+/**
+ * Builds a WbgtEnv for one hourly slot of a cached ward forecast.
+ */
+export function wbgtEnvFromHourly(
+  centroid: [number, number] | undefined,
+  hourly: {
+    time?: string[];
+    wind_speed_10m?: number[];
+    shortwave_radiation?: number[];
+    surface_pressure?: number[];
+  },
+  index: number
+): WbgtEnv {
+  return {
+    windKmh: hourly.wind_speed_10m?.[index],
+    solarGhiWm2: hourly.shortwave_radiation?.[index],
+    latitude: centroid?.[1],
+    longitude: centroid?.[0],
+    timeIso: hourly.time?.[index],
+    pressureHpa: hourly.surface_pressure?.[index],
+  };
+}
 
 // Single authoritative re-export for consumers; implementations live in
 // threshold-config.ts (never duplicated here).
@@ -94,13 +159,46 @@ export function calculateHeatIndex(tempC: number, humidity: number): number {
  * Formula: WBGT = 0.567 * T + 0.393 * e + 3.94
  * Where e = water vapor pressure (hPa) computed via Magnus-Tetens formulation:
  * e = (RH / 100) * 0.6108 * exp((17.27 * T) / (237.3 + T)) * 10
+ *
+ * NOTE (Tier-2 CHECK 12): this simplified formulation intentionally ignores
+ * wind and solar radiation. Kong & Huber (2024) show it is systematically
+ * biased under strong sun; prefer calculateWBGTDetailed with a full WbgtEnv
+ * (Liljegren 2008) whenever NWP wind + irradiance are available.
  */
-export function calculateWBGT(tempC: number, humidity: number): number {
+export function calculateWBGT(tempC: number, humidity: number, env?: WbgtEnv): number {
+  return calculateWBGTDetailed(tempC, humidity, env).value;
+}
+
+/**
+ * WBGT with method provenance. Uses Liljegren full physics when the
+ * environment carries wind + solar + position + time; otherwise the BoM
+ * simplified fallback. Never fabricates missing inputs.
+ */
+export function calculateWBGTDetailed(
+  tempC: number,
+  humidity: number,
+  env?: WbgtEnv
+): { value: number; method: WbgtMethod; tnwb?: number; tg?: number } {
+  if (env) {
+    const full = wbgtLiljegrenFull({
+      tempC,
+      humidityPct: humidity,
+      windKmh: env.windKmh as number,
+      solarGhiWm2: env.solarGhiWm2 as number,
+      latitude: env.latitude as number,
+      longitude: env.longitude as number,
+      timeIso: env.timeIso as string,
+      pressureHpa: env.pressureHpa,
+    });
+    if (full) {
+      return { value: full.wbgt, method: 'liljegren-full', tnwb: full.tnwb, tg: full.tg };
+    }
+  }
   const rh = Math.max(0, Math.min(100, humidity));
   // Saturation vapor pressure in kPa multiplied by 10 to yield hPa
   const e = (rh / 100) * 0.6108 * Math.exp((17.27 * tempC) / (237.3 + tempC)) * 10;
   const wbgt = 0.567 * tempC + 0.393 * e + 3.94;
-  return Math.round(wbgt * 10) / 10;
+  return { value: Math.round(wbgt * 10) / 10, method: 'bom-simplified' };
 }
 
 /**
@@ -191,10 +289,12 @@ export function getRecommendations(
 export function calculateThermalCalculations(
   temperature: number,
   humidity: number,
-  apparentTemperature: number
+  apparentTemperature: number,
+  env?: WbgtEnv
 ): ThermalCalculations {
   const hi = calculateHeatIndex(temperature, humidity);
-  const wbgt = calculateWBGT(temperature, humidity);
+  const wbgtDetailed = calculateWBGTDetailed(temperature, humidity, env);
+  const wbgt = wbgtDetailed.value;
   const utciProxy = approximateUTCI(temperature, humidity, apparentTemperature);
   const heatCondition = classifyHeatCondition(temperature);
   const thermalStress = classifyThermalStress(hi, wbgt);
@@ -202,6 +302,7 @@ export function calculateThermalCalculations(
   return {
     heat_index: hi,
     wbgt,
+    wbgt_method: wbgtDetailed.method,
     utci_proxy: utciProxy,
     heat_condition: heatCondition,
     thermal_stress: thermalStress,
@@ -214,12 +315,14 @@ export function calculateThermalCalculations(
 export function calculateThermalStress(
   temperature: number,
   humidity: number,
-  apparentTemperature: number
+  apparentTemperature: number,
+  env?: WbgtEnv
 ): ThermalReadings {
   const calculations = calculateThermalCalculations(
     temperature,
     humidity,
-    apparentTemperature
+    apparentTemperature,
+    env
   );
   const { level, label } = classifyRisk(calculations.heat_index);
   const recs = getRecommendations(calculations.thermal_stress, temperature, humidity);
@@ -230,6 +333,7 @@ export function calculateThermalStress(
     apparent_temperature: apparentTemperature,
     heat_index: calculations.heat_index,
     wbgt_estimated: calculations.wbgt,
+    wbgt_method: calculations.wbgt_method,
     utci_proxy: calculations.utci_proxy,
     utc_index: calculations.utci_proxy, // Legacy alias for UTCI Proxy
     risk_level: level,

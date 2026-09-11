@@ -22,6 +22,8 @@ import type { ForecastRunMetadata, WardWeatherForecast } from '@/types/weather';
 import {
   calculateHeatIndex,
   calculateWBGT,
+  wbgtEnvFromHourly,
+  type WbgtEnv,
 } from '@/lib/thermal-engine';
 import {
   classifyHeatCondition,
@@ -95,10 +97,11 @@ function readSlot(
 function metricsFromSlot(
   forecast: WardWeatherForecast,
   slot: HourSlot,
-  vulnerabilityScore: number | null
+  vulnerabilityScore: number | null,
+  env?: WbgtEnv
 ): TemporalWardMetrics {
   const hi = calculateHeatIndex(slot.temp, slot.rh);
-  const wbgt = calculateWBGT(slot.temp, slot.rh);
+  const wbgt = calculateWBGT(slot.temp, slot.rh, env);
   const compositeRisk =
     vulnerabilityScore != null
       ? calculateCompositeRiskScore(calculateThermalScore(hi), vulnerabilityScore)
@@ -141,17 +144,21 @@ export function resolveWardTemporalMetrics(params: {
 
   if (mode === 'PEAK') {
     let best: HourSlot | null = null;
+    let bestIdx = -1;
     let bestWbgt = -Infinity;
     for (let i = 0; i < times.length; i++) {
       const slot = readSlot(forecast, i);
       if (!slot) continue;
-      const w = calculateWBGT(slot.temp, slot.rh);
+      const w = calculateWBGT(slot.temp, slot.rh, wbgtEnvFromHourly(forecast.centroid, forecast.hourly, i));
       if (w > bestWbgt) {
         bestWbgt = w;
         best = slot;
+        bestIdx = i;
       }
     }
-    return best ? metricsFromSlot(forecast, best, vulnerability) : null;
+    return best
+      ? metricsFromSlot(forecast, best, vulnerability, wbgtEnvFromHourly(forecast.centroid, forecast.hourly, bestIdx))
+      : null;
   }
 
   let idx: number;
@@ -165,7 +172,9 @@ export function resolveWardTemporalMetrics(params: {
   if (idx === -1) return null;
 
   const slot = readSlot(forecast, idx);
-  return slot ? metricsFromSlot(forecast, slot, vulnerability) : null;
+  return slot
+    ? metricsFromSlot(forecast, slot, vulnerability, wbgtEnvFromHourly(forecast.centroid, forecast.hourly, idx))
+    : null;
 }
 
 /**

@@ -26,8 +26,10 @@ import { fileURLToPath } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const REPO_ROOT = path.resolve(__dirname, '../..');
-const HEATPULSE_DIR = path.join(REPO_ROOT, 'heatpulse');
+const CANDIDATE_ROOT = path.resolve(__dirname, '../..');
+const IS_IN_HEATPULSE = fs.existsSync(path.join(CANDIDATE_ROOT, 'src')) && fs.existsSync(path.join(CANDIDATE_ROOT, 'public'));
+const HEATPULSE_DIR = IS_IN_HEATPULSE ? CANDIDATE_ROOT : path.join(CANDIDATE_ROOT, 'heatpulse');
+const REPO_ROOT = IS_IN_HEATPULSE ? path.resolve(CANDIDATE_ROOT, '..') : CANDIDATE_ROOT;
 const SRC_DIR = path.join(HEATPULSE_DIR, 'src');
 const PACKAGE_JSON_PATH = path.join(HEATPULSE_DIR, 'package.json');
 

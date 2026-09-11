@@ -68,6 +68,7 @@ interface OpenMeteoHourlyResponse {
   apparent_temperature: number[];
   wind_speed_10m?: number[];
   direct_normal_irradiance?: number[];
+  shortwave_radiation?: number[];
   surface_pressure?: number[];
   weather_code?: number[];
 }
@@ -109,6 +110,7 @@ async function fetchCoordinateBatch(
       'apparent_temperature',
       'wind_speed_10m',
       'direct_normal_irradiance',
+      'shortwave_radiation',
       'surface_pressure',
       'weather_code',
     ].join(','),
@@ -252,6 +254,7 @@ async function fetchCityForecastFromProvider(
       apparent_temperature: raw.hourly.apparent_temperature[currentIdx],
       wind_speed_10m: raw.hourly.wind_speed_10m?.[currentIdx],
       direct_normal_irradiance: raw.hourly.direct_normal_irradiance?.[currentIdx],
+      shortwave_radiation: raw.hourly.shortwave_radiation?.[currentIdx],
       surface_pressure: raw.hourly.surface_pressure?.[currentIdx],
       weather_code: raw.hourly.weather_code?.[currentIdx],
     };
@@ -263,6 +266,7 @@ async function fetchCityForecastFromProvider(
       apparent_temperature: raw.hourly.apparent_temperature,
       wind_speed_10m: raw.hourly.wind_speed_10m ?? [],
       direct_normal_irradiance: raw.hourly.direct_normal_irradiance ?? [],
+      shortwave_radiation: raw.hourly.shortwave_radiation ?? [],
       surface_pressure: raw.hourly.surface_pressure ?? [],
       weather_code: raw.hourly.weather_code ?? [],
     };
@@ -411,6 +415,7 @@ export async function fetchPointWeatherForecast(
       'apparent_temperature',
       'wind_speed_10m',
       'direct_normal_irradiance',
+      'shortwave_radiation',
       'surface_pressure',
       'weather_code',
     ].join(','),
@@ -456,6 +461,7 @@ export async function fetchPointWeatherForecast(
       weather_code: data.hourly.weather_code[i],
       wind_speed_10m: data.hourly.wind_speed_10m?.[i],
       direct_normal_irradiance: data.hourly.direct_normal_irradiance?.[i],
+      shortwave_radiation: data.hourly.shortwave_radiation?.[i],
       surface_pressure: data.hourly.surface_pressure?.[i],
     })),
     daily: data.daily.time.map((t: string, i: number) => ({

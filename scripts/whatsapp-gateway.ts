@@ -41,7 +41,7 @@ async function startWhatsAppBot() {
   try {
     const { state, saveCreds } = await useMultiFileAuthState(SESSION_DIR);
     const { version, isLatest } = await fetchLatestBaileysVersion().catch(() => ({
-      version: [2, 3000, 1043857760],
+      version: [2, 3000, 1043857760] as [number, number, number],
       isLatest: true,
     }));
 

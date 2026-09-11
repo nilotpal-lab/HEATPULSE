@@ -5,6 +5,7 @@
  * Executes all automated test suites:
  *   - Tier 1: Deterministic GIS Validation Suite (62 checks across 849 municipal wards & national boundaries)
  *   - Tier 2: Scientific & Data-Truth Assertion Suite (15 checks)
+ *   - Tier 3: Full-Physics WBGT Validation Suite (Liljegren 2008 wind+solar)
  * 
  * Exit Codes:
  *   0: All checks passed (100% test success)
@@ -14,6 +15,7 @@
 import { runGisValidationTests } from './gis/gis-validation.test.mjs';
 import { runStateTooltipBasemapTests } from './gis/state-tooltip-basemap-consistency.test.mjs';
 import { runDataTruthTests } from './data-truth/data-truth.test.mjs';
+import { runWbgtLiljegrenTests } from './unit/wbgt-liljegren.test.mjs';
 
 console.log('\n' + '#'.repeat(78));
 console.log('  HEATPULSE E2E AUTOMATED DETERMINISTIC & DATA-TRUTH TEST RUNNER');
@@ -35,10 +37,15 @@ console.log('\n');
 // 3. Run Tier 2: Data-Truth Assertions (15 checks)
 const dataTruthResults = runDataTruthTests();
 
+console.log('\n');
+
+// 4. Run Tier 3: Full-Physics WBGT (async physics compile + invariants)
+const wbgtResults = await runWbgtLiljegrenTests();
+
 const totalDuration = ((Date.now() - startTime) / 1000).toFixed(2);
-const grandTotal = gisResults.total + stateTooltipResults.total + dataTruthResults.total;
-const grandPassed = gisResults.passed + stateTooltipResults.passed + dataTruthResults.passed;
-const grandFailed = gisResults.failed + stateTooltipResults.failed + dataTruthResults.failed;
+const grandTotal = gisResults.total + stateTooltipResults.total + dataTruthResults.total + wbgtResults.total;
+const grandPassed = gisResults.passed + stateTooltipResults.passed + dataTruthResults.passed + wbgtResults.passed;
+const grandFailed = gisResults.failed + stateTooltipResults.failed + dataTruthResults.failed + wbgtResults.failed;
 
 console.log('\n' + '='.repeat(78));
 console.log('  GRAND SUMMARY ACROSS ALL TIERS');
@@ -46,6 +53,7 @@ console.log('='.repeat(78));
 console.log(`  Tier 1 (GIS & National Boundaries): ${gisResults.passed}/${gisResults.total} passed`);
 console.log(`  Tier 1 Ext (State Tooltip/Basemap): ${stateTooltipResults.passed}/${stateTooltipResults.total} passed`);
 console.log(`  Tier 2 (Scientific & Data-Truth)  : ${dataTruthResults.passed}/${dataTruthResults.total} passed`);
+console.log(`  Tier 3 (Full-Physics WBGT)        : ${wbgtResults.passed}/${wbgtResults.total} passed`);
 console.log('-'.repeat(78));
 console.log(`  OVERALL TOTAL                     : ${grandPassed}/${grandTotal} passed (${grandFailed} failed)`);
 console.log(`  EXECUTION DURATION                : ${totalDuration}s`);

@@ -40,7 +40,8 @@ export interface ThermalStress {
 
 export interface ThermalCalculations {
   heat_index: number; // NOAA Rothfusz °C with adjustments
-  wbgt: number; // BoM outdoor shade °C
+  wbgt: number; // Full Liljegren (wind+solar) when env present, else BoM outdoor shade °C
+  wbgt_method: 'liljegren-full' | 'bom-simplified'; // provenance of wbgt
   utci_proxy: number; // Apparent temperature °C (UTCI Proxy)
   heat_condition: HeatConditionLevel;
   thermal_stress: ThermalStressLevel;
@@ -53,6 +54,7 @@ export interface ThermalReadings {
   apparent_temperature: number;
   heat_index: number;
   wbgt_estimated: number;
+  wbgt_method?: 'liljegren-full' | 'bom-simplified'; // provenance of wbgt_estimated
   utci_proxy: number; // Transparent UTCI Proxy biometeorological labeling
   utc_index?: number; // Legacy field alias for backward compatibility (UTCI Proxy)
   risk_level: RiskLevel; // Legacy risk level string

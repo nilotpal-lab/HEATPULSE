@@ -22,7 +22,7 @@ import type {
 } from '../types/thermal';
 import { DISABLED_HEALTH_LAYER } from '../types/thermal';
 import type { ForecastRunMetadata } from '../types/weather';
-import { calculateThermalCalculations } from './thermal-engine';
+import { calculateThermalCalculations, type WbgtEnv } from './thermal-engine';
 import { getWardCensusProfile, computeCensusVulnerabilityScore } from './census-data';
 import {
   classifyVulnerabilityLevel,
@@ -260,11 +260,13 @@ export function assessWardRisk(params: {
   humidity: number;
   apparentTemperature: number;
   forecast_metadata: ForecastRunMetadata;
+  env?: WbgtEnv; // wind+solar context for full-physics WBGT (optional fallback)
 }): WardRiskAssessment {
   const thermal = calculateThermalCalculations(
     params.temperature,
     params.humidity,
-    params.apparentTemperature
+    params.apparentTemperature,
+    params.env
   );
 
   const vulnerability = getWardVulnerability(params.city_id, params.ward_name || params.ward_id);

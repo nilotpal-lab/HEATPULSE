@@ -14,7 +14,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getCityForecast, WeatherUnavailableError } from '@/lib/weather-service';
-import { calculateThermalCalculations, classifyThermalStress } from '@/lib/thermal-engine';
+import { calculateThermalCalculations, classifyThermalStress, wbgtEnvFromCurrent } from '@/lib/thermal-engine';
 import { assessWardRisk, getWardVulnerability } from '@/lib/risk-engine';
 import { classifyAdvisoryGrade } from '@/lib/advisory-engine';
 
@@ -155,10 +155,12 @@ export async function GET(request: NextRequest) {
 
     for (const wardForecast of wardEntries) {
       const cur = wardForecast.current;
+      const env = wbgtEnvFromCurrent(wardForecast.centroid, cur);
       const thermal = calculateThermalCalculations(
         cur.temperature_2m,
         cur.relative_humidity_2m,
-        cur.apparent_temperature
+        cur.apparent_temperature,
+        env
       );
 
       const thermalStress = classifyThermalStress(thermal.heat_index, thermal.wbgt);
@@ -171,6 +173,7 @@ export async function GET(request: NextRequest) {
         humidity: cur.relative_humidity_2m,
         apparentTemperature: cur.apparent_temperature,
         forecast_metadata: wardForecast.metadata,
+        env,
       });
 
       const grade = classifyAdvisoryGrade(
@@ -314,10 +317,12 @@ export async function POST(request: NextRequest) {
         const gradeRank: Record<string, number> = { green: 0, yellow: 1, orange: 2, red: 3 };
 
         for (const ward of wards) {
+          const wardEnv = wbgtEnvFromCurrent(ward.centroid, ward.current);
           const thermal = calculateThermalCalculations(
             ward.current.temperature_2m,
             ward.current.relative_humidity_2m,
-            ward.current.apparent_temperature
+            ward.current.apparent_temperature,
+            wardEnv
           );
           const stress = classifyThermalStress(thermal.heat_index, thermal.wbgt);
           const vulnerability = getWardVulnerability(ward.city_id, ward.ward_name);
@@ -329,6 +334,7 @@ export async function POST(request: NextRequest) {
             humidity: ward.current.relative_humidity_2m,
             apparentTemperature: ward.current.apparent_temperature,
             forecast_metadata: ward.metadata,
+            env: wardEnv,
           });
 
           const grade = classifyAdvisoryGrade(

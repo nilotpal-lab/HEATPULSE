@@ -273,9 +273,6 @@ export default function IndiaOverviewPage() {
 
   const cityTemps = cityMetrics.map((c) => c.temperature).filter((v): v is number => v != null && Number.isFinite(v));
   const highestTemp = cityTemps.length > 0 ? Math.max(...cityTemps) : null;
-  const imdAlertsCount = cityMetrics.filter(
-    (c) => c.imdWarning.has_forecast_input && (c.imdWarning.color_code === 'ORANGE' || c.imdWarning.color_code === 'RED')
-  ).length;
 
   return (
     <div className="flex-1 min-h-screen bg-zinc-50 pb-12">
@@ -308,7 +305,7 @@ export default function IndiaOverviewPage() {
           </div>
 
           {/* KPI Cards Row */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
             <div className="bg-zinc-50 border border-zinc-200/80 rounded-xl p-3.5">
               <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider block">
                 Monitored Metros
@@ -325,19 +322,6 @@ export default function IndiaOverviewPage() {
               <div className="text-[10px] text-zinc-500 mt-0.5">100% Deterministic GIS Validation</div>
             </div>
 
-            <div className="bg-zinc-50 border border-zinc-200/80 rounded-xl p-3.5">
-              <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider block">
-                IMD District Alerts
-              </span>
-              <div className="text-2xl font-extrabold text-zinc-900 mt-0.5">
-                {imdAlertsCount > 0 ? (
-                  <span className="text-amber-600">{imdAlertsCount} Active</span>
-                ) : (
-                  <span className="text-emerald-600">All Normal</span>
-                )}
-              </div>
-              <div className="text-[10px] text-zinc-500 mt-0.5">IMD Criteria Assessment (computed locally; not an official bulletin)</div>
-            </div>
           </div>
         </div>
       </div>
@@ -362,7 +346,7 @@ export default function IndiaOverviewPage() {
               </h3>
             </div>
           </div>
-          <div className="h-[720px] lg:h-[750px] w-full relative flex-1">
+          <div className="h-[720px] lg:h-[750px] w-full relative">
             <MapContainer
               indiaStatesGeoJSON={indiaGeoJson}
               stateMetrics={stateMetrics}

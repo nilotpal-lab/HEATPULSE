@@ -26,16 +26,20 @@ import { fileURLToPath } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const REPO_ROOT = path.resolve(__dirname, '../..');
-const PROCESSED_DIR = path.join(REPO_ROOT, 'heatpulse/public/data/processed/geojson');
-const PUBLIC_DATA_DIR = path.join(REPO_ROOT, 'heatpulse/public/data');
+const CANDIDATE_ROOT = path.resolve(__dirname, '../..');
+const IS_IN_HEATPULSE = fs.existsSync(path.join(CANDIDATE_ROOT, 'src')) && fs.existsSync(path.join(CANDIDATE_ROOT, 'public'));
+const HEATPULSE_DIR = IS_IN_HEATPULSE ? CANDIDATE_ROOT : path.join(CANDIDATE_ROOT, 'heatpulse');
+const REPO_ROOT = IS_IN_HEATPULSE ? path.resolve(CANDIDATE_ROOT, '..') : CANDIDATE_ROOT;
+
+const PROCESSED_DIR = path.join(HEATPULSE_DIR, 'public/data/processed/geojson');
+const PUBLIC_DATA_DIR = path.join(HEATPULSE_DIR, 'public/data');
 const RAW_BENGALURU_PATH = path.join(REPO_ROOT, 'wards_bengaluru_gba.geojson');
 const LEGACY_BBMP_ZIP_PATH = path.join(REPO_ROOT, 'Bengaluru_MC(www.simplygis.in).zip');
 const OUTLINE_RAR_PATH = path.join(REPO_ROOT, 'India_Outline(www.simplygis.in).rar');
 const STATE_RAR_PATH = path.join(REPO_ROOT, 'India_State_Boundary(www.simplygis.in).rar');
 const OPERATIONAL_OUTLINE_PATH = path.join(PROCESSED_DIR, 'india-outline.geojson');
 const OPERATIONAL_STATES_PATH = path.join(PROCESSED_DIR, 'india-states.geojson');
-const MAP_CONFIG_PATH = path.join(REPO_ROOT, 'heatpulse/src/lib/map-config.ts');
+const MAP_CONFIG_PATH = path.join(HEATPULSE_DIR, 'src/lib/map-config.ts');
 
 // Expected checksums and file characteristics
 const RAW_BENGALURU_EXPECTED_BYTES = 3052583;

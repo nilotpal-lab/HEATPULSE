@@ -11,7 +11,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getCityForecast, WeatherUnavailableError } from '@/lib/weather-service';
-import { calculateThermalStress } from '@/lib/thermal-engine';
+import { calculateThermalStress, wbgtEnvFromCurrent } from '@/lib/thermal-engine';
 import { assessWardRisk } from '@/lib/risk-engine';
 import { ALERT_THRESHOLDS } from '@/lib/threshold-config';
 import { evaluateImdDistrictWarning } from '@/lib/imd-service';
@@ -61,7 +61,8 @@ export async function GET(request: NextRequest) {
       const thermal = calculateThermalStress(
         cur.temperature_2m,
         cur.relative_humidity_2m,
-        cur.apparent_temperature
+        cur.apparent_temperature,
+        wbgtEnvFromCurrent(wardForecast.centroid, cur)
       );
 
       const assessment = assessWardRisk({
@@ -72,6 +73,7 @@ export async function GET(request: NextRequest) {
         humidity: cur.relative_humidity_2m,
         apparentTemperature: cur.apparent_temperature,
         forecast_metadata: wardForecast.metadata,
+        env: wbgtEnvFromCurrent(wardForecast.centroid, cur),
       });
 
       let alertLevel: 'watch' | 'warning' | 'critical' | null = null;

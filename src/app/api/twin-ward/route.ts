@@ -19,7 +19,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getCityForecast, WeatherUnavailableError } from '@/lib/weather-service';
-import { calculateThermalCalculations, classifyThermalStress } from '@/lib/thermal-engine';
+import { calculateThermalCalculations, classifyThermalStress, wbgtEnvFromCurrent } from '@/lib/thermal-engine';
 import { calculateThermalScore } from '@/lib/threshold-config';
 import { assessWardRisk, getWardVulnerability } from '@/lib/risk-engine';
 import { generateAdvisory } from '@/lib/advisory-engine';
@@ -154,10 +154,12 @@ export async function GET(request: NextRequest) {
     // Get full data for both wards
     const buildTwinData = (wardForecast: typeof wardEntries[0]): TwinWardData => {
       const cur = wardForecast.current;
+      const env = wbgtEnvFromCurrent(wardForecast.centroid, cur);
       const thermal = calculateThermalCalculations(
         cur.temperature_2m,
         cur.relative_humidity_2m,
-        cur.apparent_temperature
+        cur.apparent_temperature,
+        env
       );
       const thermalStress = classifyThermalStress(thermal.heat_index, thermal.wbgt);
       const vulnerability = getWardVulnerability(wardForecast.city_id, wardForecast.ward_name);
@@ -169,6 +171,7 @@ export async function GET(request: NextRequest) {
         humidity: cur.relative_humidity_2m,
         apparentTemperature: cur.apparent_temperature,
         forecast_metadata: wardForecast.metadata,
+        env,
       });
 
       const advisory = generateAdvisory({

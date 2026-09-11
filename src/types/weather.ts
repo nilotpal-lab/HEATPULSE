@@ -30,6 +30,7 @@ export interface WardHourlyWeather {
   apparent_temperature: number[]; // °C (UTCI Proxy)
   wind_speed_10m?: number[]; // km/h
   direct_normal_irradiance?: number[]; // W/m²
+  shortwave_radiation?: number[]; // W/m² global horizontal (Liljegren solar input)
   surface_pressure?: number[]; // hPa
   weather_code?: number[];
 }
@@ -44,6 +45,7 @@ export interface WardCurrentWeather {
   apparent_temperature: number;
   wind_speed_10m?: number;
   direct_normal_irradiance?: number;
+  shortwave_radiation?: number;
   surface_pressure?: number;
   weather_code?: number;
 }
@@ -87,6 +89,7 @@ export interface HourlyWeather {
   weather_code: number;
   wind_speed_10m?: number;
   direct_normal_irradiance?: number;
+  shortwave_radiation?: number;
   surface_pressure?: number;
 }
 
