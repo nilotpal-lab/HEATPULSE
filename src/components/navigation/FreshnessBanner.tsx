@@ -113,7 +113,6 @@ export default function FreshnessBanner({
     return (
       <div
         className={`flex items-center gap-2 text-[11px] text-zinc-600 ${className}`}
-        title="Ward-localized forecast derived from numerical weather prediction"
       >
         <div className="flex items-center gap-1.5">
           <span className={`w-2 h-2 rounded-full ring-2 ${currentCfg.dot}`} />
@@ -162,14 +161,8 @@ export default function FreshnessBanner({
         </div>
       </div>
 
-      {/* Right: NWP Attribution & Optional Refresh Button */}
+      {/* Right: Optional Refresh Button */}
       <div className="flex items-center gap-3 ml-auto">
-        <span
-          className="hidden lg:inline text-[11px] text-zinc-500 italic max-w-xs truncate"
-          title="Ward-localized forecast derived from numerical weather prediction"
-        >
-          Ward-localized forecast derived from numerical weather prediction
-        </span>
 
         {onRefresh && (
           <button

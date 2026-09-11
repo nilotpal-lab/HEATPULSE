@@ -238,9 +238,6 @@ export default function HowItWorksPage() {
                 Server-side batched queries sampling 120-hour forecast horizons per ward centroid.
                 Integrates seamless high-resolution ECMWF IFS and GFS model cycles (00Z, 06Z, 12Z, 18Z).
               </p>
-              <div className="text-[11px] font-mono text-zinc-500 pt-1 border-t border-zinc-200">
-                Attribution: &ldquo;Ward-localized forecast derived from numerical weather prediction&rdquo;
-              </div>
             </div>
 
             <div className="border border-zinc-200 rounded-xl p-4 space-y-2 bg-zinc-50/50">

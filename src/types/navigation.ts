@@ -14,7 +14,6 @@ export type NavigationPage =
   | 'city'
   | 'forecast'
   | 'risk-areas'
-  | 'insights'
   | 'how-it-works'
   | 'demo';
 
@@ -50,12 +49,6 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     label: 'Risk Areas',
     href: '/risk-areas',
     description: 'Ranked priority ward table with search, sorting & map focus',
-  },
-  {
-    id: 'insights',
-    label: 'Insights',
-    href: '/insights',
-    description: 'Data-backed descriptive spatial patterns & persistence corridors',
   },
   {
     id: 'how-it-works',

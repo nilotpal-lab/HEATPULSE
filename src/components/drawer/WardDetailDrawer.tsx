@@ -921,9 +921,6 @@ export default function WardDetailDrawer() {
                     <span className="text-zinc-400">Sync Status:</span>
                     <span className="text-emerald-700 font-bold uppercase">{metadata?.status || 'fresh'}</span>
                   </div>
-                  <div className="pt-1 border-t border-zinc-100 text-[10px] text-zinc-500 italic font-sans">
-                    &ldquo;Ward-localized forecast derived from numerical weather prediction&rdquo;
-                  </div>
                 </div>
               )}
             </div>

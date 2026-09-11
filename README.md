@@ -35,7 +35,6 @@
 | `/india` | **National Overview** | National thermal choropleth with monitored city index cards |
 | `/forecast` | **120-Hour Timeline** | Diurnal temperature/humidity curves with heat wave severity badges |
 | `/risk-areas` | **Priority Risk Areas** | Searchable, ranked municipal ward risk matrix with direct map framing |
-| `/insights` | **Spatial Insights** | Compound heat corridors, urban heat island (UHI) hotspots, and thermal persistence |
 | `/demo` | **Twin-Ward Comparison** | Vulnerability-driven risk divergence demonstration |
 | `/how-it-works` | **Methodology** | Mathematical formulas, data source provenance, and non-claims transparency |
 

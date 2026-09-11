@@ -30,7 +30,6 @@ import {
   Layers,
   BarChart3,
   CalendarDays,
-  Lightbulb,
   Info,
   Globe2,
   Check,
@@ -46,7 +45,6 @@ const PAGE_ICONS: Record<NavigationPage, React.ComponentType<{ className?: strin
   city: Layers,
   forecast: CalendarDays,
   'risk-areas': BarChart3,
-  insights: Lightbulb,
   'how-it-works': Info,
   demo: AlertTriangle,
 };

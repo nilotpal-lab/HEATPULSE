@@ -291,7 +291,7 @@ export default function IndiaOverviewPage() {
           </div>
 
           {/* KPI Cards Row */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
             <div className="bg-zinc-50 border border-zinc-200/80 rounded-xl p-3.5">
               <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider block">
                 Monitored Metros
@@ -306,16 +306,6 @@ export default function IndiaOverviewPage() {
               </span>
               <div className="text-2xl font-extrabold text-zinc-900 mt-0.5">849 Wards</div>
               <div className="text-[10px] text-zinc-500 mt-0.5">100% Deterministic GIS Validation</div>
-            </div>
-
-            <div className="bg-zinc-50 border border-zinc-200/80 rounded-xl p-3.5">
-              <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider block">
-                National Peak Temp
-              </span>
-              <div className="text-2xl font-extrabold text-orange-600 mt-0.5">
-                {highestTemp != null ? `${highestTemp}°C` : '--°C'}
-              </div>
-              <div className="text-[10px] text-zinc-500 mt-0.5">Across monitored municipal centroids</div>
             </div>
 
             <div className="bg-zinc-50 border border-zinc-200/80 rounded-xl p-3.5">

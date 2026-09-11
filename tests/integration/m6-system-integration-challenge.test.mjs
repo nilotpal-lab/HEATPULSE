@@ -52,7 +52,6 @@ const EXPECTED_PAGE_ROUTES = [
   { path: 'src/app/india/page.tsx', route: '/india', description: 'Page 1: India Overview' },
   { path: 'src/app/forecast/page.tsx', route: '/forecast', description: 'Page 3: Forecast Narrative' },
   { path: 'src/app/risk-areas/page.tsx', route: '/risk-areas', description: 'Page 4: Ranked Risk Areas' },
-  { path: 'src/app/insights/page.tsx', route: '/insights', description: 'Page 5: Descriptive Insights' },
   { path: 'src/app/how-it-works/page.tsx', route: '/how-it-works', description: 'Page 6: Scientific Methodology' },
 ];
 
