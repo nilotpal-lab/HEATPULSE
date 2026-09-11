@@ -32,6 +32,7 @@ import {
 } from './weather-cache';
 import { loadCityGeoJson, getWardCentroid } from './gis-utils';
 import { CityId, CITIES } from '../types/gis';
+import { fetchCityForecastFromMetNo, METNO_PROVIDER } from './weather-metno';
 
 // Open-Meteo endpoint
 const OPEN_METEO_BASE_URL =

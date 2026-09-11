@@ -124,7 +124,7 @@ export async function sendWhatsAppDirect(phone: string, text: string): Promise<{
 /**
  * Check if the WhatsApp Gateway daemon is running and connected
  */
-export async function getGatewayStatus(): Promise<{ online: boolean; authenticated: boolean; user?: string; error?: string }> {
+export async function getGatewayStatus(): Promise<{ online: boolean; authenticated: boolean; user?: string; qr?: string; error?: string }> {
   try {
     const res = await fetch(`${GATEWAY_URL}/status`, {
       signal: AbortSignal.timeout(2000),
@@ -135,6 +135,24 @@ export async function getGatewayStatus(): Promise<{ online: boolean; authenticat
     return { online: false, authenticated: false, error: `HTTP ${res.status}` };
   } catch (error: any) {
     return { online: false, authenticated: false, error: 'WhatsApp Gateway not running (run `npm run whatsapp`)' };
+  }
+}
+
+/**
+ * Reset WhatsApp Gateway auth session and trigger fresh QR code generation
+ */
+export async function resetGatewaySession(): Promise<{ success: boolean; message?: string; error?: string }> {
+  try {
+    const res = await fetch(`${GATEWAY_URL}/reset`, {
+      method: 'POST',
+      signal: AbortSignal.timeout(5000),
+    });
+    if (res.ok) {
+      return await res.json();
+    }
+    return { success: false, error: `Gateway response ${res.status}` };
+  } catch (error: any) {
+    return { success: false, error: `Gateway not reachable: ${error.message}` };
   }
 }
 

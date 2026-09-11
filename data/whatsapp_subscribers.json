@@ -2,12 +2,23 @@
   {
     "id": "sub_1789113447101_mwn85",
     "phone": "919878747413",
-    "name": "sumit",
+    "name": "naga",
     "cityId": "bengaluru",
-    "wardId": "blr-003",
-    "wardName": "Chowdeshwari ward",
+    "wardId": "blr-013",
+    "wardName": "Jalahalli",
     "language": "en",
     "isActive": true,
     "createdAt": "2026-09-11T07:57:27.101Z"
+  },
+  {
+    "id": "sub_1789118098223_spf7c",
+    "phone": "919678216401",
+    "name": "Nilotpal Deb",
+    "cityId": "bengaluru",
+    "wardId": "blr-020",
+    "wardName": "Subbayanapalya",
+    "language": "en",
+    "isActive": true,
+    "createdAt": "2026-09-11T09:14:58.223Z"
   }
 ]

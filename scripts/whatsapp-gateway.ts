@@ -34,6 +34,39 @@ process.on('unhandledRejection', (reason: any) => {
   console.warn('⚠️ [WhatsApp Gateway] Handled unhandled rejection:', reason?.message || reason);
 });
 
+async function resetSession() {
+  console.log('\n🔄 [HeatPulse WhatsApp] Resetting session credentials and restarting QR signaling...');
+  isConnected = false;
+  currentQr = '';
+  userPhone = '';
+  if (sock) {
+    try {
+      sock.ev.removeAllListeners('connection.update');
+      sock.ev.removeAllListeners('creds.update');
+      sock.ev.removeAllListeners('messages.upsert');
+      sock.end(undefined);
+    } catch (e) {
+      // ignore
+    }
+    sock = null;
+  }
+
+  if (fs.existsSync(SESSION_DIR)) {
+    try {
+      const files = fs.readdirSync(SESSION_DIR);
+      for (const file of files) {
+        fs.unlinkSync(path.join(SESSION_DIR, file));
+      }
+      console.log('🧹 [HeatPulse WhatsApp] Cleaned stale session credentials.');
+    } catch (err: any) {
+      console.warn('⚠️ [WhatsApp Gateway] Warning clearing session files:', err.message);
+    }
+  }
+
+  isReconnecting = false;
+  await startWhatsAppBot();
+}
+
 async function startWhatsAppBot() {
   if (isReconnecting) return;
   isReconnecting = true;
@@ -41,7 +74,7 @@ async function startWhatsAppBot() {
   try {
     const { state, saveCreds } = await useMultiFileAuthState(SESSION_DIR);
     const { version, isLatest } = await fetchLatestBaileysVersion().catch(() => ({
-      version: [2, 3000, 1043857760] as [number, number, number],
+      version: [2, 3000, 1017583994] as [number, number, number],
       isLatest: true,
     }));
 
@@ -79,6 +112,9 @@ async function startWhatsAppBot() {
         isReconnecting = false;
         if (shouldReconnect) {
           setTimeout(startWhatsAppBot, 4000);
+        } else {
+          console.log(`🧹 [HeatPulse WhatsApp] Disconnected or logged out. Resetting auth state...`);
+          resetSession();
         }
       } else if (connection === 'open') {
         isConnected = true;
@@ -194,6 +230,18 @@ function startHttpServer() {
       return;
     }
 
+    if ((req.url === '/reset' || req.url?.startsWith('/reset')) && (req.method === 'POST' || req.method === 'GET')) {
+      await resetSession();
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(
+        JSON.stringify({
+          success: true,
+          message: 'WhatsApp gateway session and QR signaling reset successfully.',
+        })
+      );
+      return;
+    }
+
     if (req.url === '/send' && req.method === 'POST') {
       let body = '';
       req.on('data', (chunk) => {
@@ -209,14 +257,19 @@ function startHttpServer() {
             return;
           }
 
+          let sanitizedPhone = String(phone).replace(/[^\d]/g, '');
+          if (sanitizedPhone.length === 10) {
+            sanitizedPhone = '91' + sanitizedPhone;
+          }
+
           if (sock && isConnected) {
-            const jid = `${phone.replace(/[^\d]/g, '')}@s.whatsapp.net`;
+            const jid = `${sanitizedPhone}@s.whatsapp.net`;
             console.log(`📤 [HeatPulse Gateway] Delivering message to ${jid}...`);
             await sock.sendMessage(jid, { text });
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ success: true, delivered: true, jid }));
           } else {
-            console.log(`[HeatPulse Gateway] Message queued for +${phone}`);
+            console.log(`[HeatPulse Gateway] Message queued for +${sanitizedPhone}`);
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(
               JSON.stringify({

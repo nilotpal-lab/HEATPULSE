@@ -80,6 +80,18 @@ export default function Header() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Check and reset WhatsApp QR signaling whenever someone opens the website (on load)
+  useEffect(() => {
+    fetch('/api/whatsapp/status')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.gateway?.online && !data.gateway?.authenticated && !data.gateway?.qr) {
+          fetch('/api/whatsapp/reset', { method: 'POST' }).catch(() => {});
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   const handleCitySelect = (cityId: CityId) => {
     heatPulseActions.setSelectedCity(cityId);
     setCityDropdownOpen(false);

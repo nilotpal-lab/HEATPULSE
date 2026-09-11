@@ -69,6 +69,7 @@ export default function WhatsAppAlertModal({
   // Loading & Feedback
   const [loading, setLoading] = useState(false);
   const [testSending, setTestSending] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
   const [responseMsg, setResponseMsg] = useState<{ success: boolean; text: string } | null>(null);
   const [gatewayStatus, setGatewayStatus] = useState<{
     online: boolean;
@@ -94,10 +95,39 @@ export default function WhatsAppAlertModal({
       .catch(() => {});
   };
 
-  // Poll status every 2 seconds when open
+  const handleResetQr = async () => {
+    setIsResetting(true);
+    setResponseMsg(null);
+    try {
+      const res = await fetch('/api/whatsapp/reset', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        setResponseMsg({ success: true, text: '🔄 QR signaling reset! Generating fresh WhatsApp pairing QR code...' });
+        fetchStatus();
+      } else {
+        setResponseMsg({ success: false, text: data.error || 'Failed to reset QR signaling.' });
+      }
+    } catch (err: any) {
+      setResponseMsg({ success: false, text: 'Reset error: ' + err.message });
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
+  // Poll status every 2.5s and trigger QR reset on open if unauthenticated and no QR code active
   useEffect(() => {
     if (isOpen) {
       fetchStatus();
+      // Auto-reset QR signaling if gateway online but unauthenticated
+      fetch('/api/whatsapp/status')
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.gateway?.online && !data.gateway?.authenticated && !data.gateway?.qr) {
+            handleResetQr();
+          }
+        })
+        .catch(() => {});
+
       const interval = setInterval(fetchStatus, 2500);
       return () => clearInterval(interval);
     }
@@ -677,6 +707,24 @@ export default function WhatsAppAlertModal({
                       <p className="text-[10px] text-emerald-700 font-medium">
                         Auto-refreshes every few seconds. Once scanned, gateway links immediately!
                       </p>
+                      <button
+                        type="button"
+                        disabled={isResetting}
+                        onClick={handleResetQr}
+                        className="mt-2 py-2 px-3 bg-white hover:bg-emerald-100/60 text-emerald-900 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 border border-emerald-300 mx-auto shadow-xs disabled:opacity-50"
+                      >
+                        {isResetting ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-700" />
+                            <span>Resetting QR Signaling...</span>
+                          </>
+                        ) : (
+                          <>
+                            <RefreshCw className="w-3.5 h-3.5 text-emerald-700" />
+                            <span>Reset QR Signaling</span>
+                          </>
+                        )}
+                      </button>
                     </div>
                   ) : gatewayStatus?.authenticated ? (
                     <div className="p-3.5 bg-emerald-50 border border-emerald-300 rounded-xl flex items-center justify-between">
@@ -687,11 +735,43 @@ export default function WhatsAppAlertModal({
                           <p className="text-[10px] text-emerald-700">Account: +{gatewayStatus.user}</p>
                         </div>
                       </div>
-                      <span className="text-[10px] bg-emerald-600 text-white font-bold px-2 py-0.5 rounded-full">
-                        Ready
-                      </span>
+                      <button
+                        type="button"
+                        disabled={isResetting}
+                        onClick={handleResetQr}
+                        className="text-[10px] bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-2.5 py-1 rounded-lg flex items-center gap-1 transition-colors"
+                        title="Unlink and reset QR signaling"
+                      >
+                        <RefreshCw className="w-3 h-3" />
+                        <span>Reset QR</span>
+                      </button>
                     </div>
-                  ) : null}
+                  ) : (
+                    <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-xl text-center space-y-2">
+                      <p className="text-xs font-bold text-amber-950">Gateway Offline or Generating QR...</p>
+                      <p className="text-[11px] text-amber-800">
+                        Start it with <code className="bg-amber-100 px-1 py-0.5 rounded font-mono">npm run whatsapp</code>.
+                      </p>
+                      <button
+                        type="button"
+                        disabled={isResetting}
+                        onClick={handleResetQr}
+                        className="py-1.5 px-3 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition-all inline-flex items-center gap-1.5 shadow-xs"
+                      >
+                        {isResetting ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            <span>Resetting QR Signaling...</span>
+                          </>
+                        ) : (
+                          <>
+                            <RefreshCw className="w-3.5 h-3.5" />
+                            <span>Reset QR Signaling</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
 
                   <div className="p-3.5 bg-blue-50 border border-blue-200 rounded-xl">
                     <div className="flex items-center gap-2 text-blue-950 font-bold text-xs">

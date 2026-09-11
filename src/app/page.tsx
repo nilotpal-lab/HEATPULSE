@@ -8,10 +8,9 @@
  * Core Layout & Architecture:
  * 1. City Header with active city name, ward count, and forecast freshness banner.
  * 2. Temporal Scope Control Strip (Consumes forecastContext from store: CURRENT vs PEAK).
- * 3. Standardized 3-Block Summary (Strict separation of CURRENT vs FORECAST PEAK):
+ * 3. Standardized 2-Block Summary (Strict separation of CURRENT vs FORECAST PEAK):
  *    - Section A: CURRENT CONDITIONS displaying current-hour Air Temp, RH, Wind Speed, WBGT, and Thermal Status.
  *    - Section B: FORECAST PEAK (NEXT 120 HOURS) displaying Peak WBGT, Peak Date, Peak Time, and Count of affected wards.
- *    - Block 3: District Heat Evaluation — HeatPulse local evaluation of IMD criteria (color code, alert level). NOT an official IMD bulletin.
  * 4. OpenLayers MapContainer with primary ISRO NRSC Bhuvan WMS, OSM fallback, and LayerSwitcher.
  * 5. 3 to 5 Day Heat & Thermal Stress Outlook (threshold classification — not heatwave-day detection).
  * 6. Integrated Right-Side Ward Detail Drawer preserving map visibility.
@@ -20,7 +19,6 @@
 import React, { useEffect, useMemo } from 'react';
 import {
   MapPin,
-  ShieldAlert,
   CalendarDays,
   Layers,
   Thermometer,
@@ -31,7 +29,6 @@ import { CITIES } from '@/types/gis';
 import FreshnessBanner, { formatToIST, formatDateIST } from '@/components/navigation/FreshnessBanner';
 import MapContainer from '@/components/map/MapContainer';
 import WardDetailDrawer from '@/components/drawer/WardDetailDrawer';
-import { evaluateImdDistrictWarning } from '@/lib/imd-service';
 import { calculateHeatIndex, calculateWBGT } from '@/lib/thermal-engine';
 import {
   THERMAL_STRESS_THRESHOLDS,
@@ -342,14 +339,6 @@ export default function CityOverviewPage() {
       ? formatToIST(data.forecastMetadata.valid_time)
       : formatToIST(new Date().toISOString()));
 
-  // District heat evaluation — HeatPulse applies IMD criteria to local forecast data (not an IMD bulletin)
-  const imdWarning = useMemo(() => {
-    return (
-      data.imdWarning ||
-      evaluateImdDistrictWarning(selectedCity, currentConditions?.airTemp ?? undefined)
-    );
-  }, [data.imdWarning, selectedCity, currentConditions?.airTemp]);
-
   const portableHeatwaveFeatures = useMemo(() => {
     const forecast = Object.values(data.weatherForecasts || {})[0];
     if (!forecast || forecast.hourly.time.length === 0) return null;
@@ -360,9 +349,6 @@ export default function CityOverviewPage() {
     const humidity = humidities[0];
     const gamma = Math.log(Math.max(1, humidity) / 100) + (17.27 * temperature) / (237.3 + temperature);
     const dewpoint = (237.3 * gamma) / (17.27 - gamma);
-    // Optional provider fields pass through as 0 only when genuinely absent —
-    // the model schema requires numbers, and 0 is the honest "no radiation /
-    // calm wind" value when the provider omitted the field.
     const radiation = forecast.hourly.direct_normal_irradiance?.find(Number.isFinite) ?? 0;
     const windKmh = forecast.hourly.wind_speed_10m?.find(Number.isFinite) ?? 0;
     const firstDate = new Date(forecast.hourly.time[0]);
@@ -444,16 +430,12 @@ export default function CityOverviewPage() {
     }
 
     if (data.wardRisks && data.wardRisks.length > 0) {
-      // No genuine hourly NWP data on this path — keep the outlook unavailable
-      // rather than inventing a deterministic temperature drift.
       return [];
     }
 
     return [];
   }, [isDataReady, data.weatherForecasts, data.wardRisks]);
 
-  // Nighttime detection — IST 20:00 to 06:00 (nocturnal window where WBGT remains elevated due to humidity)
-  // This determines whether to show the "CURRENT NIGHT CONDITIONS · NEXT DAY PEAK" context banner.
   const isNighttimeIST = useMemo(() => {
     const now = new Date();
     const istHour = parseInt(
@@ -462,36 +444,6 @@ export default function CityOverviewPage() {
     );
     return istHour >= 20 || istHour < 6;
   }, []);
-
-
-  const imdColorStyles = {
-    GREEN: {
-      bg: 'bg-emerald-50',
-      border: 'border-emerald-200',
-      text: 'text-emerald-900',
-      badge: 'bg-emerald-100 text-emerald-800 border-emerald-300',
-    },
-    YELLOW: {
-      bg: 'bg-amber-50',
-      border: 'border-amber-200',
-      text: 'text-amber-900',
-      badge: 'bg-amber-100 text-amber-800 border-amber-300',
-    },
-    ORANGE: {
-      bg: 'bg-orange-50',
-      border: 'border-orange-200',
-      text: 'text-orange-900',
-      badge: 'bg-orange-100 text-orange-800 border-orange-300',
-    },
-    RED: {
-      bg: 'bg-red-50',
-      border: 'border-red-200',
-      text: 'text-red-900',
-      badge: 'bg-red-100 text-red-800 border-red-300',
-    },
-  };
-
-  const activeImdStyle = imdColorStyles[imdWarning.color_code] || imdColorStyles.GREEN;
   return (
     <div className="flex flex-col min-h-screen bg-zinc-100/70">
       {/* Top City Header Strip */}
@@ -642,11 +594,11 @@ export default function CityOverviewPage() {
         )}
 
         {/* ============================================================ */}
-        {/* 3-BLOCK SUMMARY: Strict separation of CURRENT vs FORECAST PEAK */}
+        {/* 2-BLOCK SUMMARY: Strict separation of CURRENT vs FORECAST PEAK */}
         {/* ============================================================ */}
         <section
-          aria-label="Thermal Decision Support 3-Block Summary"
-          className="grid grid-cols-1 md:grid-cols-3 gap-4"
+          aria-label="Thermal Decision Support 2-Block Summary"
+          className="grid grid-cols-1 md:grid-cols-2 gap-4"
         >
           {/* SECTION A: CURRENT CONDITIONS */}
           <div
@@ -815,53 +767,6 @@ export default function CityOverviewPage() {
               <span className="font-semibold text-red-600">
                 {forecastPeak ? `${forecastPeak.affectedCount} High/Severe Wards` : 'Calculating...'}
               </span>
-            </div>
-          </div>
-
-          {/* BLOCK 3: DISTRICT HEAT EVALUATION (HeatPulse-applied IMD criteria — NOT an official IMD/MoES bulletin) */}
-          <div
-            className={`rounded-2xl p-4 border shadow-xs flex flex-col justify-between relative overflow-hidden ${activeImdStyle.bg} ${activeImdStyle.border}`}
-          >
-            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-zinc-700 to-zinc-900" />
-            <div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <ShieldAlert className="w-4 h-4 text-zinc-800" />
-                  <span className="text-xs font-bold text-zinc-800 uppercase tracking-wider">
-                    3. District Heat Evaluation
-                  </span>
-                </div>
-                <span
-                  className={`text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full border ${activeImdStyle.badge}`}
-                >
-                  {imdWarning.has_forecast_input
-                    ? `${imdWarning.color_code} · ${imdWarning.action_level}`
-                    : 'Assessment Unavailable'}
-                </span>
-              </div>
-
-              <div className="mt-3">
-                <div className="text-base font-bold text-zinc-900 leading-snug">
-                  {imdWarning.headline}
-                </div>
-                <p className="text-xs text-zinc-700 mt-1.5 leading-relaxed">
-                  {imdWarning.warning_description}
-                </p>
-                {!imdWarning.has_forecast_input && (
-                  <p className="text-[10px] text-zinc-500 mt-1.5 italic">
-                    No forecast temperature input available — criteria not evaluated.
-                  </p>
-                )}
-              </div>
-
-              <div className="mt-2 text-[10px] text-zinc-600 bg-white/70 rounded-lg p-2 border border-zinc-200/60 leading-tight">
-                <strong>Criteria: </strong> {imdWarning.criteria_citation}
-              </div>
-            </div>
-
-            <div className="mt-3 pt-2.5 border-t border-zinc-300/60 flex items-center justify-between text-[10px] text-zinc-500">
-              <span className="italic">HeatPulse criteria-based evaluation — not an official IMD bulletin</span>
-              <span className="font-medium text-zinc-700">See IMD / MoES channels for official warnings</span>
             </div>
           </div>
         </section>
