@@ -34,11 +34,13 @@ import {
   Globe2,
   Check,
   AlertTriangle,
+  MessageSquare,
 } from 'lucide-react';
 import { CITIES, CityId, CITY_LIST } from '@/types/gis';
 import { NAVIGATION_ITEMS, NavigationPage } from '@/types/navigation';
 import { useHeatPulseStore, heatPulseActions } from '@/lib/store';
 import FreshnessBanner from './FreshnessBanner';
+import WhatsAppAlertModal from './WhatsAppAlertModal';
 
 const PAGE_ICONS: Record<NavigationPage, React.ComponentType<{ className?: string }>> = {
   india: Globe2,
@@ -53,6 +55,7 @@ export default function Header() {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [cityDropdownOpen, setCityDropdownOpen] = useState(false);
+  const [whatsappModalOpen, setWhatsappModalOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const selectedCity = useHeatPulseStore((s) => s.selectedCity);
@@ -209,10 +212,29 @@ export default function Header() {
               </Link>
             );
           })}
+
+          {/* WhatsApp Alert Service Trigger Button */}
+          <button
+            type="button"
+            onClick={() => setWhatsappModalOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-xs hover:shadow-sm transition-all shrink-0 ml-1 group"
+          >
+            <MessageSquare className="w-3.5 h-3.5 fill-white/20 text-white group-hover:scale-110 transition-transform" />
+            <span>WhatsApp Alerts</span>
+            <span className="w-2 h-2 rounded-full bg-emerald-300 animate-pulse" />
+          </button>
         </nav>
 
-        {/* Mobile Hamburger Toggle */}
+        {/* Mobile Hamburger Toggle & Quick WhatsApp Button */}
         <div className="flex items-center gap-2 md:hidden">
+          <button
+            type="button"
+            onClick={() => setWhatsappModalOpen(true)}
+            className="flex items-center gap-1 px-2.5 py-1 bg-emerald-600 text-white rounded-lg text-xs font-semibold"
+          >
+            <MessageSquare className="w-3.5 h-3.5" />
+            <span>Alerts</span>
+          </button>
           <button
             type="button"
             onClick={() => setMobileMenuOpen((prev) => !prev)}
@@ -252,6 +274,22 @@ export default function Header() {
               </Link>
             );
           })}
+
+          <button
+            type="button"
+            onClick={() => {
+              setMobileMenuOpen(false);
+              setWhatsappModalOpen(true);
+            }}
+            className="w-full mt-2 flex items-center justify-between p-3 bg-emerald-50 border border-emerald-200 text-emerald-950 rounded-xl text-xs font-bold"
+          >
+            <div className="flex items-center gap-2">
+              <MessageSquare className="w-4 h-4 text-emerald-600" />
+              <span>Get WhatsApp Heatwave Alerts</span>
+            </div>
+            <span className="text-[10px] bg-emerald-600 text-white px-2 py-0.5 rounded-full">Free</span>
+          </button>
+
           <div className="pt-2 border-t border-zinc-100 mt-2">
             <FreshnessBanner
               metadata={activeCityData?.forecastMetadata}
@@ -261,6 +299,13 @@ export default function Header() {
           </div>
         </div>
       )}
+
+      {/* WhatsApp Alerts Modal */}
+      <WhatsAppAlertModal
+        isOpen={whatsappModalOpen}
+        onClose={() => setWhatsappModalOpen(false)}
+        defaultCity={selectedCity}
+      />
     </header>
   );
 }
