@@ -152,13 +152,6 @@ export default function FreshnessBanner({
           <span className="text-zinc-500">Last updated:</span>
           <span className="font-mono text-zinc-800">{updatedTimeStr}</span>
         </div>
-
-        {/* Valid Target Window */}
-        <div className="hidden md:flex items-center gap-1.5 text-zinc-700">
-          <span className="text-zinc-300">·</span>
-          <span className="text-zinc-500">Valid:</span>
-          <span className="font-medium text-zinc-800">{validTimeStr}</span>
-        </div>
       </div>
 
       {/* Right: Optional Refresh Button */}
