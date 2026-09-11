@@ -515,9 +515,6 @@ export default function CityOverviewPage() {
                   {cityMeta.wardCount} Administrative Wards
                 </span>
               </div>
-              <p className="text-xs text-zinc-500 mt-0.5">
-                Primary Surveillance Interface · Centroid-Batched NWP Pipeline & Ward Spatial GIS
-              </p>
             </div>
           </div>
 
