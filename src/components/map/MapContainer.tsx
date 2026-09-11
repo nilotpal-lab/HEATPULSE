@@ -644,7 +644,7 @@ export default function MapContainer({
             badgeBg = 'bg-slate-100';
             badgeText = 'text-slate-700';
             badgeBorder = 'border-slate-300';
-            subtext = 'Regional baseline (unmonitored). Ward-level NWP forecasts active in 6 metro regions.';
+            subtext = 'Regional baseline (unmonitored). Municipal telemetry active in 6 metro regions.';
           }
 
           setHoverTooltip({
