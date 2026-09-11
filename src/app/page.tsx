@@ -39,7 +39,6 @@ import {
   temporalModeLabel as getTemporalModeLabel,
   type TemporalMode,
 } from '@/lib/temporal-modes';
-import HeatwaveModelStatus from '@/components/HeatwaveModelStatus';
 
 /**
  * Resolves the reference valid-time for PEAK mode from real ward forecasts
@@ -338,33 +337,6 @@ export default function CityOverviewPage() {
     (data.forecastMetadata?.valid_time
       ? formatToIST(data.forecastMetadata.valid_time)
       : formatToIST(new Date().toISOString()));
-
-  const portableHeatwaveFeatures = useMemo(() => {
-    const forecast = Object.values(data.weatherForecasts || {})[0];
-    if (!forecast || forecast.hourly.time.length === 0) return null;
-    const temperatures = forecast.hourly.temperature_2m.filter(Number.isFinite);
-    const humidities = forecast.hourly.relative_humidity_2m.filter(Number.isFinite);
-    if (temperatures.length === 0 || humidities.length === 0) return null;
-    const temperature = temperatures[0];
-    const humidity = humidities[0];
-    const gamma = Math.log(Math.max(1, humidity) / 100) + (17.27 * temperature) / (237.3 + temperature);
-    const dewpoint = (237.3 * gamma) / (17.27 - gamma);
-    const radiation = forecast.hourly.direct_normal_irradiance?.find(Number.isFinite) ?? 0;
-    const windKmh = forecast.hourly.wind_speed_10m?.find(Number.isFinite) ?? 0;
-    const firstDate = new Date(forecast.hourly.time[0]);
-    return {
-      temperature_c: temperature,
-      tmax_c: Math.max(...temperatures),
-      tmin_c: Math.min(...temperatures),
-      dewpoint_c: dewpoint,
-      wind_speed: windKmh / 3.6,
-      radiation,
-      latitude: forecast.centroid[1],
-      longitude: forecast.centroid[0],
-      month: firstDate.getUTCMonth() + 1,
-      day: firstDate.getUTCDate(),
-    };
-  }, [data.weatherForecasts]);
 
   // 5-Day Outlook Data Synthesizer from genuine ward forecasts
   const fiveDayOutlook = useMemo(() => {
@@ -770,7 +742,6 @@ export default function CityOverviewPage() {
             </div>
           </div>
         </section>
-        <HeatwaveModelStatus features={portableHeatwaveFeatures} />
 
         {/* ============================================================ */}
         {/* SPATIAL MAP CONTAINER: ISRO Bhuvan WMS + OSM Fallback */}

@@ -1,10 +1,10 @@
 {
   "city_id": "pune",
   "run_time": "2026-09-11T06:00:00Z",
-  "fetched_at": "2026-09-11T09:45:49.944Z",
+  "fetched_at": "2026-09-11T10:13:49.987Z",
   "metadata": {
     "run_time": "2026-09-11T06:00:00Z",
-    "fetched_at": "2026-09-11T09:45:49.944Z",
+    "fetched_at": "2026-09-11T10:13:49.987Z",
     "valid_time": "2026-09-11T15:00",
     "provider": "Open-Meteo NWP Grid",
     "model": "ECMWF IFS / GFS Seamless",
@@ -1134,7 +1134,7 @@
       },
       "metadata": {
         "run_time": "2026-09-11T06:00:00Z",
-        "fetched_at": "2026-09-11T09:45:49.944Z",
+        "fetched_at": "2026-09-11T10:13:49.987Z",
         "valid_time": "2026-09-11T15:00",
         "provider": "Open-Meteo NWP Grid",
         "model": "ECMWF IFS / GFS Seamless",
@@ -2265,7 +2265,7 @@
       },
       "metadata": {
         "run_time": "2026-09-11T06:00:00Z",
-        "fetched_at": "2026-09-11T09:45:49.944Z",
+        "fetched_at": "2026-09-11T10:13:49.987Z",
         "valid_time": "2026-09-11T15:00",
         "provider": "Open-Meteo NWP Grid",
         "model": "ECMWF IFS / GFS Seamless",
@@ -3396,7 +3396,7 @@
       },
       "metadata": {
         "run_time": "2026-09-11T06:00:00Z",
-        "fetched_at": "2026-09-11T09:45:49.944Z",
+        "fetched_at": "2026-09-11T10:13:49.987Z",
         "valid_time": "2026-09-11T15:00",
         "provider": "Open-Meteo NWP Grid",
         "model": "ECMWF IFS / GFS Seamless",
@@ -4527,7 +4527,7 @@
       },
       "metadata": {
         "run_time": "2026-09-11T06:00:00Z",
-        "fetched_at": "2026-09-11T09:45:49.944Z",
+        "fetched_at": "2026-09-11T10:13:49.987Z",
         "valid_time": "2026-09-11T15:00",
         "provider": "Open-Meteo NWP Grid",
         "model": "ECMWF IFS / GFS Seamless",
@@ -5658,7 +5658,7 @@
       },
       "metadata": {
         "run_time": "2026-09-11T06:00:00Z",
-        "fetched_at": "2026-09-11T09:45:49.944Z",
+        "fetched_at": "2026-09-11T10:13:49.987Z",
         "valid_time": "2026-09-11T15:00",
         "provider": "Open-Meteo NWP Grid",
         "model": "ECMWF IFS / GFS Seamless",
@@ -6789,7 +6789,7 @@
       },
       "metadata": {
         "run_time": "2026-09-11T06:00:00Z",
-        "fetched_at": "2026-09-11T09:45:49.944Z",
+        "fetched_at": "2026-09-11T10:13:49.987Z",
         "valid_time": "2026-09-11T15:00",
         "provider": "Open-Meteo NWP Grid",
         "model": "ECMWF IFS / GFS Seamless",
@@ -7920,7 +7920,7 @@
       },
       "metadata": {
         "run_time": "2026-09-11T06:00:00Z",
-        "fetched_at": "2026-09-11T09:45:49.944Z",
+        "fetched_at": "2026-09-11T10:13:49.987Z",
         "valid_time": "2026-09-11T15:00",
         "provider": "Open-Meteo NWP Grid",
         "model": "ECMWF IFS / GFS Seamless",
@@ -9051,7 +9051,7 @@
       },
       "metadata": {
         "run_time": "2026-09-11T06:00:00Z",
-        "fetched_at": "2026-09-11T09:45:49.944Z",
+        "fetched_at": "2026-09-11T10:13:49.987Z",
         "valid_time": "2026-09-11T15:00",
         "provider": "Open-Meteo NWP Grid",
         "model": "ECMWF IFS / GFS Seamless",
@@ -10182,7 +10182,7 @@
       },
       "metadata": {
         "run_time": "2026-09-11T06:00:00Z",
-        "fetched_at": "2026-09-11T09:45:49.944Z",
+        "fetched_at": "2026-09-11T10:13:49.987Z",
         "valid_time": "2026-09-11T15:00",
         "provider": "Open-Meteo NWP Grid",
         "model": "ECMWF IFS / GFS Seamless",
@@ -11313,7 +11313,7 @@
       },
       "metadata": {
         "run_time": "2026-09-11T06:00:00Z",
-        "fetched_at": "2026-09-11T09:45:49.944Z",
+        "fetched_at": "2026-09-11T10:13:49.987Z",
         "valid_time": "2026-09-11T15:00",
         "provider": "Open-Meteo NWP Grid",
         "model": "ECMWF IFS / GFS Seamless",
@@ -12444,7 +12444,7 @@
       },
       "metadata": {
         "run_time": "2026-09-11T06:00:00Z",
-        "fetched_at": "2026-09-11T09:45:49.944Z",
+        "fetched_at": "2026-09-11T10:13:49.987Z",
         "valid_time": "2026-09-11T15:00",
         "provider": "Open-Meteo NWP Grid",
         "model": "ECMWF IFS / GFS Seamless",
@@ -13575,7 +13575,7 @@
       },
       "metadata": {
         "run_time": "2026-09-11T06:00:00Z",
-        "fetched_at": "2026-09-11T09:45:49.944Z",
+        "fetched_at": "2026-09-11T10:13:49.987Z",
         "valid_time": "2026-09-11T15:00",
         "provider": "Open-Meteo NWP Grid",
         "model": "ECMWF IFS / GFS Seamless",
@@ -14706,7 +14706,7 @@
       },
       "metadata": {
         "run_time": "2026-09-11T06:00:00Z",
-        "fetched_at": "2026-09-11T09:45:49.944Z",
+        "fetched_at": "2026-09-11T10:13:49.987Z",
         "valid_time": "2026-09-11T15:00",
         "provider": "Open-Meteo NWP Grid",
         "model": "ECMWF IFS / GFS Seamless",
@@ -15837,7 +15837,7 @@
       },
       "metadata": {
         "run_time": "2026-09-11T06:00:00Z",
-        "fetched_at": "2026-09-11T09:45:49.944Z",
+        "fetched_at": "2026-09-11T10:13:49.987Z",
         "valid_time": "2026-09-11T15:00",
         "provider": "Open-Meteo NWP Grid",
         "model": "ECMWF IFS / GFS Seamless",
@@ -16968,7 +16968,7 @@
       },
       "metadata": {
         "run_time": "2026-09-11T06:00:00Z",
-        "fetched_at": "2026-09-11T09:45:49.944Z",
+        "fetched_at": "2026-09-11T10:13:49.987Z",
         "valid_time": "2026-09-11T15:00",
         "provider": "Open-Meteo NWP Grid",
         "model": "ECMWF IFS / GFS Seamless",
@@ -16978,6 +16978,6 @@
       "attribution": "Ward-localized forecast derived from numerical weather prediction"
     }
   },
-  "cached_at": 1789119949946,
-  "expires_at": 1789120849946
+  "cached_at": 1789121629988,
+  "expires_at": 1789122529988
 }
