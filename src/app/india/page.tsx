@@ -348,12 +348,6 @@ export default function IndiaOverviewPage() {
                 <Globe2 className="w-4 h-4 text-orange-600" />
                 <span>Pan-India Thermal & Biometeorological Overview (LOD 0)</span>
               </h3>
-              <p className="text-xs text-zinc-500">
-                Pan-India state boundaries, national heat distribution, and monitored city markers. Click any city marker to fly down to ward level.
-              </p>
-            </div>
-            <div className="text-[11px] text-zinc-500 font-medium bg-zinc-100 px-2.5 py-1 rounded-lg border border-zinc-200">
-              36 States & UTs · Synoptic Scale
             </div>
           </div>
           <div className="h-[720px] lg:h-[750px] w-full relative flex-1">

@@ -31,14 +31,14 @@ export default function MapLegend({ activeLayer, className = '' }: MapLegendProp
       style={{ minWidth: collapsed ? 'auto' : '220px' }}
     >
       <div className="flex items-center justify-between gap-2 mb-2">
-        <span className="font-semibold text-zinc-900 tracking-tight flex items-center gap-1.5">
+        <span className="font-bold text-zinc-950 tracking-tight flex items-center gap-1.5 text-xs">
           <span className="w-2 h-2 rounded-full bg-orange-500" />
           {layerConfig.title}
         </span>
         <button
           type="button"
           onClick={() => setCollapsed(!collapsed)}
-          className="text-zinc-400 hover:text-zinc-700 text-[10px] px-1 py-0.5 rounded hover:bg-zinc-100"
+          className="text-zinc-500 hover:text-zinc-800 text-[10px] font-bold px-1 py-0.5 rounded hover:bg-zinc-100"
           title={collapsed ? 'Expand legend' : 'Collapse legend'}
         >
           {collapsed ? '▼' : '▲'}
@@ -49,7 +49,7 @@ export default function MapLegend({ activeLayer, className = '' }: MapLegendProp
         <div className="space-y-2">
           {/* Subtitle / Descriptor */}
           {layerConfig.subtitle && (
-            <div className="text-[10px] text-zinc-500 font-medium">
+            <div className="text-[10px] text-zinc-800 font-bold tracking-wide">
               {layerConfig.subtitle}
             </div>
           )}
@@ -57,8 +57,8 @@ export default function MapLegend({ activeLayer, className = '' }: MapLegendProp
           {/* Honest disabled notice for health impact layer */}
           {activeLayer === 'health_impact' && (
             <div className="p-2 rounded-md bg-amber-50 border border-amber-200 text-[10px] text-amber-900 leading-tight space-y-0.5">
-              <span className="font-semibold block text-amber-950">Layer Disabled</span>
-              <span>Coming with validated health-outcome model. Relative Risk proxy only (No synthetic data).</span>
+              <span className="font-bold block text-amber-950">Layer Disabled</span>
+              <span className="font-medium">Coming with validated health-outcome model. Relative Risk proxy only (No synthetic data).</span>
             </div>
           )}
 
@@ -68,29 +68,29 @@ export default function MapLegend({ activeLayer, className = '' }: MapLegendProp
               <div key={item.key} className="flex items-center justify-between gap-2 text-[11px]">
                 <div className="flex items-center gap-2">
                   <div
-                    className="w-3.5 h-3 rounded-sm shrink-0 border border-black/10"
+                    className="w-3.5 h-3 rounded-sm shrink-0 border border-black/20"
                     style={{ backgroundColor: item.stroke }}
                   />
-                  <span className="text-zinc-700">{item.label}</span>
+                  <span className="font-bold text-zinc-900">{item.label}</span>
                 </div>
-                <span className="text-[10px] text-zinc-400 font-mono">{item.desc}</span>
+                <span className="text-[10px] text-zinc-900 font-bold font-mono">{item.desc}</span>
               </div>
             ))}
           </div>
 
           {/* Boundaries & Selection Keys */}
-          <div className="pt-2 border-t border-zinc-200/80 space-y-1 text-[10px] text-zinc-500">
+          <div className="pt-2 border-t border-zinc-200/80 space-y-1 text-[10px]">
             <div className="flex items-center gap-2">
-              <div className="w-3.5 h-1 rounded bg-slate-400" />
-              <span>Ward Boundary (LOD 8–18)</span>
+              <div className="w-3.5 h-1 rounded bg-slate-500" />
+              <span className="font-bold text-zinc-900">Ward Boundary (LOD 8–18)</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-3.5 h-1 rounded bg-[#00f2fe] ring-1 ring-[#00f2fe]/50" />
-              <span className="font-medium text-cyan-800">Selected Ward (3.5px border)</span>
+              <div className="w-3.5 h-1 rounded bg-[#00f2fe] ring-1 ring-[#00f2fe]/60" />
+              <span className="font-extrabold text-cyan-900">Selected Ward (3.5px border)</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-3.5 h-2.5 rounded-sm bg-[#f1f5f9] border border-[#cbd5e1]" />
-              <span className="text-zinc-600">Unmonitored State (No Active Telemetry)</span>
+              <div className="w-3.5 h-2.5 rounded-sm bg-[#f1f5f9] border border-[#94a3b8]" />
+              <span className="font-bold text-zinc-900">Unmonitored State (No Active Telemetry)</span>
             </div>
           </div>
         </div>
