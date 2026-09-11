@@ -78,7 +78,7 @@ export default function FreshnessBanner({
 }: FreshnessBannerProps) {
   const status = metadata?.status || 'fresh';
   const effectiveRunTime = metadata?.run_time || calculateClientNwpRunTime();
-  const effectiveUpdatedTime = metadata?.fetched_at || lastUpdatedTime || new Date().toISOString();
+  const effectiveUpdatedTime = lastUpdatedTime || metadata?.fetched_at || new Date().toISOString();
   const runTimeStr = formatToIST(effectiveRunTime);
   const updatedTimeStr = formatToIST(effectiveUpdatedTime);
   const validTimeStr = metadata?.valid_time

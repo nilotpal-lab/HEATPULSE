@@ -12,7 +12,7 @@
  * 5. One-click navigation to City Overview
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -174,18 +174,35 @@ export default function IndiaOverviewPage() {
   }, []);
 
   // Fetch state-capital NWP telemetry for all 36 States & UTs
-  useEffect(() => {
-    let isMounted = true;
-    fetch('/api/states')
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const fetchStatesData = useCallback((force = false) => {
+    const q = force ? `?refresh=true&_t=${Date.now()}` : '';
+    return fetch(`/api/states${q}`)
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (data?.states && isMounted) {
+        if (data?.states) {
           setStateApiData(data.states as Record<string, StateThermalData>);
         }
       })
       .catch((err) => console.warn('[IndiaPage] /api/states fetch failed:', err));
-    return () => { isMounted = false; };
   }, []);
+
+  useEffect(() => {
+    fetchStatesData(false);
+  }, [fetchStatesData]);
+
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      await Promise.all([
+        fetchStatesData(true),
+        ...CITY_LIST.map((c) => heatPulseActions.loadCityData(c.id, true)),
+      ]);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [fetchStatesData]);
 
   // Derive state metrics and city telemetry for national choropleth layer.
   // Priority: city ward data (more granular) > state capital NWP data.
@@ -328,7 +345,12 @@ export default function IndiaOverviewPage() {
       {/* Main Content Area */}
       <div className="max-w-[1600px] mx-auto w-full px-4 sm:px-8 mt-6 space-y-6">
         {/* Freshness Banner */}
-        <FreshnessBanner compact={false} lastUpdatedTime={lastFetched} />
+        <FreshnessBanner
+          compact={false}
+          lastUpdatedTime={lastFetched}
+          onRefresh={handleRefresh}
+          isRefreshing={isRefreshing}
+        />
 
         {/* National GIS Basemap Container (DOMINANT POSITION) */}
         <div className="bg-white rounded-2xl border border-zinc-200 overflow-hidden shadow-xs flex flex-col min-h-[760px]">

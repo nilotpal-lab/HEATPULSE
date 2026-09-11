@@ -325,9 +325,13 @@ export const heatPulseActions = {
         });
     }
 
+    // Set status to loading for visual feedback and state tracking
+    heatPulseActions.setCityCacheData(cityId, { status: 'loading' });
+
     // 2. Independently and asynchronously fetch weather, risk assessments, and IMD warning
     try {
-      const riskPromise = fetch(`/api/risk?city=${cityId}`)
+      const cacheBuster = force ? `&refresh=true&_t=${Date.now()}` : '';
+      const riskPromise = fetch(`/api/risk?city=${cityId}${cacheBuster}`)
         .then((res) => {
           if (!res.ok) {
             console.warn(`Risk endpoint warning for ${cityId}: ${res.statusText}`);
@@ -340,11 +344,11 @@ export const heatPulseActions = {
           return null;
         });
 
-      const imdPromise = fetch(`/api/imd?city=${cityId}`)
+      const imdPromise = fetch(`/api/imd?city=${cityId}${cacheBuster}`)
         .then((res) => (res.ok ? res.json() : null))
         .catch(() => null);
 
-      const weatherPromise = fetch(`/api/weather?city=${cityId}`)
+      const weatherPromise = fetch(`/api/weather?city=${cityId}${cacheBuster}`)
         .then((res) => (res.ok ? res.json() : null))
         .catch(() => null);
 

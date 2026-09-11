@@ -199,10 +199,7 @@ export default function RiskAreasPage() {
                   Ranked Priority Risk Areas ({cityMeta.name})
                 </h1>
               </div>
-              <p className="text-xs sm:text-sm text-zinc-500 mt-1">
-                Multi-criteria ranked prioritization across all {cityMeta.wardCount} administrative wards.
-                Formula: <code className="text-zinc-700 bg-zinc-100 px-1 py-0.5 rounded font-mono text-xs">Risk = 0.6 × Thermal + 0.4 × Vulnerability</code>.
-              </p>
+              
             </div>
 
             <Link

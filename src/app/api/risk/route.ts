@@ -23,12 +23,13 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const cityParam = (searchParams.get('city') || 'pune').toLowerCase().trim();
   const wardParam = searchParams.get('ward')?.trim();
+  const isRefresh = searchParams.get('refresh') === 'true';
 
   try {
     // 1. Specific single-ward request
     if (wardParam) {
       try {
-        const { forecast, status } = await getWardForecast(cityParam, wardParam);
+        const { forecast, status } = await getWardForecast(cityParam, wardParam, { refresh: isRefresh });
         const assessment = assessWardRisk({
           ward_id: forecast.ward_id,
           ward_name: forecast.ward_name,
@@ -111,7 +112,7 @@ export async function GET(request: NextRequest) {
     }
 
     // 2. City-wide multi-ward risk assessment (per-ward NWP sampling)
-    const { run, status } = await getCityForecast(cityParam);
+    const { run, status } = await getCityForecast(cityParam, { refresh: isRefresh });
     const wardEntries = Object.values(run.wards);
 
     const assessments: WardRiskAssessment[] = [];
